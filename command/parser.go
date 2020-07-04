@@ -87,7 +87,7 @@ func (p *Parser) register(cmdName string, requestFixer compositeFixer, responseF
 }
 
 // valueFixer implementation for the $db value in a document.
-func (p *Parser) databaseNameValueFixer(val bsoncore.Value, dst bsoncore.Document) (bsoncore.Document, error) {
+func (p *Parser) databaseNameValueFixer(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
 	db, ok := val.StringValueOK()
 	if !ok {
 		return nil, fmt.Errorf("expected $db value to be string, got %s", val.Type)
@@ -97,6 +97,6 @@ func (p *Parser) databaseNameValueFixer(val bsoncore.Value, dst bsoncore.Documen
 	if _, ok := noopDatabaseNames[db]; !ok {
 		fixedDB = fmt.Sprintf("fixed%s", db)
 	}
-	dst = bsoncore.AppendStringElement(dst, dbKey, fixedDB)
+	dst = bsoncore.AppendStringElement(dst, key, fixedDB)
 	return dst, nil
 }
