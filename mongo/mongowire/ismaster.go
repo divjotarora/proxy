@@ -36,10 +36,5 @@ func HandshakeIsMasterResponse(requestID int32) Message {
 
 // HeartbeatIsMasterResponse TODO
 func HeartbeatIsMasterResponse(requestID int32) Message {
-	return &opMsg{
-		respTo: requestID,
-		sections: []opMsgSection{
-			&opMsgSectionSingle{document: isMasterResponseDocument},
-		},
-	}
+	return newOpMsgResponse(requestID, isMasterResponseDocument)
 }

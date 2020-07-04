@@ -15,6 +15,11 @@ type Message interface {
 	RequestID() int32
 }
 
+type FixableMessage interface {
+	Message
+	EncodeFixed(bsoncore.Document) []byte
+}
+
 // Decode TODO
 func Decode(wm []byte) (Message, error) {
 	wmLength := len(wm)

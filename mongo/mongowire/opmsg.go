@@ -8,63 +8,68 @@ import (
 	"go.mongodb.org/mongo-driver/x/mongo/driver/wiremessage"
 )
 
+type opMsgSection struct {
+	sectionType wiremessage.SectionType
+	document    bsoncore.Document
+	identifier  string
+	sequence    []bsoncore.Document
+}
+
 type opMsg struct {
 	reqID    int32
 	respTo   int32
-	dbName   string
-	cmd      bsoncore.Document
+	doc      bsoncore.Document
 	flags    wiremessage.MsgFlag
-	sections []opMsgSection
+	sections []*opMsgSection
 }
 
 var _ Message = (*opMsg)(nil)
+var _ FixableMessage = (*opMsg)(nil)
 
-type opMsgSection interface {
-	append([]byte) []byte
-}
-
-type opMsgSectionSingle struct {
-	document bsoncore.Document
-}
-
-func (o *opMsgSectionSingle) append(buffer []byte) []byte {
-	buffer = wiremessage.AppendMsgSectionType(buffer, wiremessage.SingleDocument)
-	return append(buffer, o.document...)
-}
-
-type opMsgSectionSequence struct {
-	identifier string
-	msgs       []bsoncore.Document
-}
-
-func (o *opMsgSectionSequence) append(buffer []byte) []byte {
-	buffer = wiremessage.AppendMsgSectionType(buffer, wiremessage.DocumentSequence)
-
-	length := int32(len(o.identifier) + 5)
-	for _, msg := range o.msgs {
-		length += int32(len(msg))
+func newOpMsgResponse(requestID int32, doc bsoncore.Document) *opMsg {
+	section := &opMsgSection{
+		sectionType: wiremessage.SingleDocument,
+		document:    doc,
 	}
-
-	buffer = appendi32(buffer, length)
-	buffer = appendCString(buffer, o.identifier)
-	for _, msg := range o.msgs {
-		buffer = append(buffer, msg...)
+	return &opMsg{
+		respTo:   requestID,
+		doc:      doc,
+		sections: []*opMsgSection{section},
 	}
-
-	return buffer
 }
 
 func (m *opMsg) CommandDocument() bsoncore.Document {
-	return m.cmd
+	return m.doc
 }
 
 func (m *opMsg) Encode() []byte {
+	return m.EncodeFixed(m.doc)
+}
+
+func (m *opMsg) EncodeFixed(fixedCmd bsoncore.Document) []byte {
 	var buffer []byte
 	idx, buffer := wiremessage.AppendHeaderStart(buffer, m.reqID, m.respTo, wiremessage.OpMsg)
 	buffer = wiremessage.AppendMsgFlags(buffer, m.flags)
 	for _, section := range m.sections {
-		buffer = section.append(buffer)
+		buffer = wiremessage.AppendMsgSectionType(buffer, section.sectionType)
+
+		switch section.sectionType {
+		case wiremessage.SingleDocument:
+			buffer = append(buffer, fixedCmd...)
+		case wiremessage.DocumentSequence:
+			length := int32(len(section.identifier) + 5)
+			for _, msg := range section.sequence {
+				length += int32(len(msg))
+			}
+
+			buffer = appendi32(buffer, length)
+			buffer = appendCString(buffer, section.identifier)
+			for _, msg := range section.sequence {
+				buffer = append(buffer, msg...)
+			}
+		}
 	}
+
 	buffer = bsoncore.UpdateLength(buffer, idx, int32(len(buffer[idx:])))
 	return buffer
 }
@@ -87,37 +92,29 @@ func decodeMsg(reqID, respTo int32, wm []byte) (*opMsg, error) {
 	}
 
 	for len(wm) > 0 {
-		var stype wiremessage.SectionType
-		stype, wm, ok = wiremessage.ReadMsgSectionType(wm)
+		var section opMsgSection
+		section.sectionType, wm, ok = wiremessage.ReadMsgSectionType(wm)
 		if !ok {
 			return nil, errors.New("malformed wire message: insufficient bytes to read section type")
 		}
 
-		switch stype {
+		switch section.sectionType {
 		case wiremessage.SingleDocument:
-			s := opMsgSectionSingle{}
-			s.document, wm, ok = wiremessage.ReadMsgSectionSingleDocument(wm)
+			section.document, wm, ok = wiremessage.ReadMsgSectionSingleDocument(wm)
 			if !ok {
 				return nil, errors.New("malformed wire message: insufficient bytes to read single document")
 			}
-			m.cmd = s.document
-			m.sections = append(m.sections, &s)
-
-			dbVal, err := s.document.LookupErr("$db")
-			if err == nil {
-				// Messages from the server to the original client might not have a $db field.
-				m.dbName = dbVal.StringValue()
-			}
+			m.doc = section.document
 		case wiremessage.DocumentSequence:
-			s := opMsgSectionSequence{}
-			s.identifier, s.msgs, wm, ok = wiremessage.ReadMsgSectionDocumentSequence(wm)
+			section.identifier, section.sequence, wm, ok = wiremessage.ReadMsgSectionDocumentSequence(wm)
 			if !ok {
 				return nil, errors.New("malformed wire message: insufficient bytes to read document sequence")
 			}
-			m.sections = append(m.sections, &s)
 		default:
-			return nil, fmt.Errorf("malformed wire message: unknown section type %v", stype)
+			return nil, fmt.Errorf("malformed wire message: unknown section type %v", section.sectionType)
 		}
+
+		m.sections = append(m.sections, &section)
 	}
 
 	return &m, nil
