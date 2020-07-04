@@ -1,6 +1,8 @@
-package mongo
+package mongowire
 
-import "go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
+import (
+	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
+)
 
 // IsMasterResponse TODO
 var (

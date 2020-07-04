@@ -5,7 +5,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/divjotarora/proxy/mongo"
+	"github.com/divjotarora/proxy/mongo/mongowire"
 )
 
 // Conn TODO
@@ -26,7 +26,7 @@ func NewConn(nc net.Conn) (*Conn, error) {
 }
 
 // ReadWireMessage TODO
-func (c *Conn) ReadWireMessage(buf []byte) (mongo.Message, error) {
+func (c *Conn) ReadWireMessage(buf []byte) (mongowire.Message, error) {
 	var sizeBuf [4]byte
 
 	_, err := io.ReadFull(c, sizeBuf[:])
@@ -48,7 +48,7 @@ func (c *Conn) ReadWireMessage(buf []byte) (mongo.Message, error) {
 		return nil, err
 	}
 
-	msg, err := mongo.Decode(buffer)
+	msg, err := mongowire.Decode(buffer)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (c *Conn) handshake() error {
 
 		switch cmdName {
 		case "isMaster", "ismaster":
-			response := mongo.HandshakeIsMasterResponse(msg.RequestID())
+			response := mongowire.HandshakeIsMasterResponse(msg.RequestID())
 			return c.WriteWireMessage(response.Encode())
 		default:
 			return fmt.Errorf("unknown handshake command %s", cmdName)

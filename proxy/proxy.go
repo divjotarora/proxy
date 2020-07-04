@@ -9,6 +9,7 @@ import (
 
 	"github.com/divjotarora/proxy/conn"
 	"github.com/divjotarora/proxy/mongo"
+	"github.com/divjotarora/proxy/mongo/mongowire"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -87,11 +88,11 @@ func handleRequest(conn *conn.Conn) error {
 	}
 
 	cmd := msg.CommandDocument()
-	var responseMsg mongo.Message
+	var responseMsg mongowire.Message
 
 	switch cmdName := cmd.Index(0).Key(); cmdName {
 	case "isMaster", "ismaster":
-		responseMsg = mongo.HeartbeatIsMasterResponse(msg.RequestID())
+		responseMsg = mongowire.HeartbeatIsMasterResponse(msg.RequestID())
 	default:
 		return fmt.Errorf("unrecognized command name %s", cmdName)
 	}
