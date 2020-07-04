@@ -66,22 +66,22 @@ func (p *Proxy) Run() error {
 				log.Printf("error establishing user connection: %v\n", err)
 				return
 			}
-			if err := handleConnection(userConn); err != nil {
+			if err := p.handleConnection(userConn); err != nil {
 				log.Printf("handleConnection error: %v", err)
 			}
 		}()
 	}
 }
 
-func handleConnection(conn *conn.Conn) error {
+func (p *Proxy) handleConnection(conn *conn.Conn) error {
 	for {
-		if err := handleRequest(conn); err != nil {
+		if err := p.handleRequest(conn); err != nil {
 			return err
 		}
 	}
 }
 
-func handleRequest(conn *conn.Conn) error {
+func (p *Proxy) handleRequest(conn *conn.Conn) error {
 	msg, err := conn.ReadWireMessage(nil)
 	if err != nil {
 		return fmt.Errorf("error reading user message: %w", err)
@@ -94,7 +94,10 @@ func handleRequest(conn *conn.Conn) error {
 	case "isMaster", "ismaster":
 		responseMsg = mongowire.HeartbeatIsMasterResponse(msg.RequestID())
 	default:
-		return fmt.Errorf("unrecognized command name %s", cmdName)
+		responseMsg, err = p.client.RoundTrip(context.TODO(), msg)
+	}
+	if err != nil {
+		return fmt.Errorf("error handling request: %w", err)
 	}
 
 	return conn.WriteWireMessage(responseMsg.Encode())

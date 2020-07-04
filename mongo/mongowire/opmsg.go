@@ -111,10 +111,10 @@ func decodeMsg(reqID, respTo int32, wm []byte) (*opMsg, error) {
 			m.sections = append(m.sections, &s)
 
 			dbVal, err := s.document.LookupErr("$db")
-			if err != nil {
-				return nil, errors.New("malformed wire message: $db not found in command document")
+			if err == nil {
+				// Messages from the server to the original client might not have a $db field.
+				m.dbName = dbVal.StringValue()
 			}
-			m.dbName = dbVal.StringValue()
 		case wiremessage.DocumentSequence:
 			s := opMsgSectionSequence{}
 			s.identifier, s.msgs, wm, ok = wiremessage.ReadMsgSectionDocumentSequence(wm)
