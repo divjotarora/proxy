@@ -2,13 +2,15 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"sync"
 
 	"github.com/divjotarora/proxy/command"
-	"github.com/divjotarora/proxy/conn"
+	"github.com/divjotarora/proxy/connection"
+	conn "github.com/divjotarora/proxy/connection"
 	"github.com/divjotarora/proxy/mongo"
 	"github.com/divjotarora/proxy/mongo/mongowire"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -71,13 +73,18 @@ func (p *Proxy) Run() error {
 				return
 			}
 			if err := p.handleConnection(userConn); err != nil {
+				if errors.Is(err, connection.ErrClientHungUp) {
+					log.Println("connection closed by client")
+					return
+				}
+
 				log.Printf("handleConnection error: %v", err)
 			}
 		}()
 	}
 }
 
-func (p *Proxy) handleConnection(conn *conn.Conn) error {
+func (p *Proxy) handleConnection(conn *conn.Connection) error {
 	for {
 		if err := p.handleRequest(conn); err != nil {
 			return err
@@ -85,11 +92,12 @@ func (p *Proxy) handleConnection(conn *conn.Conn) error {
 	}
 }
 
-func (p *Proxy) handleRequest(conn *conn.Conn) error {
+func (p *Proxy) handleRequest(conn *conn.Connection) error {
 	msgBytes, err := conn.ReadWireMessage(nil)
 	if err != nil {
 		return err
 	}
+
 	msg, err := mongowire.Decode(msgBytes)
 	if err != nil {
 		return err

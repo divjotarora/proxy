@@ -1,6 +1,7 @@
-package conn
+package connection
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -8,15 +9,20 @@ import (
 	"github.com/divjotarora/proxy/mongo/mongowire"
 )
 
-// Conn represents a network connection between a client and the proxy.
-type Conn struct {
+var (
+	// ErrClientHungUp is returned when a client closes the connection.
+	ErrClientHungUp = errors.New("client hung up the connection")
+)
+
+// Connection represents a network connection between a client and the proxy.
+type Connection struct {
 	net.Conn
 }
 
 // NewConn creates a new Conn instance wrapping the underlying net.Conn. This function performs all handshake commands
 // necessary to initialize the connection.
-func NewConn(nc net.Conn) (*Conn, error) {
-	c := &Conn{
+func NewConn(nc net.Conn) (*Connection, error) {
+	c := &Connection{
 		nc,
 	}
 
@@ -26,12 +32,17 @@ func NewConn(nc net.Conn) (*Conn, error) {
 	return c, nil
 }
 
-// ReadWireMessage reads the next wire message from the client.
-func (c *Conn) ReadWireMessage(buf []byte) ([]byte, error) {
+// ReadWireMessage reads the next wire message from the client. If the connection is closed by the client while
+// reading the message, ErrClientHungUp is returned.
+func (c *Connection) ReadWireMessage(buf []byte) ([]byte, error) {
 	var sizeBuf [4]byte
 
 	_, err := io.ReadFull(c, sizeBuf[:])
 	if err != nil {
+		if err == io.EOF {
+			err = ErrClientHungUp
+		}
+
 		return nil, err
 	}
 
@@ -53,12 +64,12 @@ func (c *Conn) ReadWireMessage(buf []byte) ([]byte, error) {
 }
 
 // WriteWireMessage writes the given wire message to the client.
-func (c *Conn) WriteWireMessage(buf []byte) error {
+func (c *Connection) WriteWireMessage(buf []byte) error {
 	_, err := c.Write(buf)
 	return err
 }
 
-func (c *Conn) handshake() error {
+func (c *Connection) handshake() error {
 	for {
 		msgBytes, err := c.ReadWireMessage(nil)
 		if err != nil {
