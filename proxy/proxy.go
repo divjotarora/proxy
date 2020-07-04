@@ -7,6 +7,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/divjotarora/proxy/command"
 	"github.com/divjotarora/proxy/conn"
 	"github.com/divjotarora/proxy/mongo"
 	"github.com/divjotarora/proxy/mongo/mongowire"
@@ -18,6 +19,7 @@ type Proxy struct {
 	network string
 	address string
 	client  *mongo.Client
+	parser  *command.Parser
 	wg      sync.WaitGroup
 }
 
@@ -32,6 +34,7 @@ func NewProxy(network, address string, clientOpts *options.ClientOptions) (*Prox
 		network: network,
 		address: address,
 		client:  client,
+		parser:  command.NewParser(),
 	}
 	return p, nil
 }
@@ -94,11 +97,15 @@ func (p *Proxy) handleRequest(conn *conn.Conn) error {
 	case "isMaster", "ismaster":
 		responseMsg = mongowire.HeartbeatIsMasterResponse(msg.RequestID())
 	default:
-		responseMsg, err = p.client.RoundTrip(context.TODO(), msg)
+		responseMsg, err = p.handleProxiedRequest(msg, cmdName)
 	}
 	if err != nil {
 		return fmt.Errorf("error handling request: %w", err)
 	}
 
 	return conn.WriteWireMessage(responseMsg.Encode())
+}
+
+func (p *Proxy) handleProxiedRequest(msg mongowire.Message, cmdName string) (mongowire.Message, error) {
+	return p.client.RoundTrip(context.TODO(), msg)
 }

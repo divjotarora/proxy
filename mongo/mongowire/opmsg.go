@@ -12,6 +12,7 @@ type opMsg struct {
 	reqID    int32
 	respTo   int32
 	dbName   string
+	cmd      bsoncore.Document
 	flags    wiremessage.MsgFlag
 	sections []opMsgSection
 }
@@ -54,12 +55,7 @@ func (o *opMsgSectionSequence) append(buffer []byte) []byte {
 }
 
 func (m *opMsg) CommandDocument() bsoncore.Document {
-	for _, section := range m.sections {
-		if single, ok := section.(*opMsgSectionSingle); ok {
-			return single.document
-		}
-	}
-	return nil
+	return m.cmd
 }
 
 func (m *opMsg) Database() string {
@@ -108,6 +104,7 @@ func decodeMsg(reqID, respTo int32, wm []byte) (*opMsg, error) {
 			if !ok {
 				return nil, errors.New("malformed wire message: insufficient bytes to read single document")
 			}
+			m.cmd = s.document
 			m.sections = append(m.sections, &s)
 
 			dbVal, err := s.document.LookupErr("$db")
