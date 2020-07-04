@@ -26,13 +26,17 @@ func (q *opQuery) CommandDocument() bsoncore.Document {
 }
 
 func (q *opQuery) Encode() []byte {
+	return q.EncodeFixed(q.query)
+}
+
+func (q *opQuery) EncodeFixed(fixedDocument bsoncore.Document) []byte {
 	var buffer []byte
 	idx, buffer := wiremessage.AppendHeaderStart(buffer, q.reqID, 0, wiremessage.OpQuery)
 	buffer = wiremessage.AppendQueryFlags(buffer, q.flags)
 	buffer = wiremessage.AppendQueryFullCollectionName(buffer, q.collName)
 	buffer = wiremessage.AppendQueryNumberToSkip(buffer, q.numberToSkip)
 	buffer = wiremessage.AppendQueryNumberToReturn(buffer, q.numberToReturn)
-	buffer = append(buffer, q.query...)
+	buffer = append(buffer, fixedDocument...)
 	if len(q.returnFieldsSelector) != 0 {
 		// returnFieldsSelector is optional
 		buffer = append(buffer, q.returnFieldsSelector...)

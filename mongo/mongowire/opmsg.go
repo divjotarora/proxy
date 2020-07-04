@@ -24,7 +24,6 @@ type opMsg struct {
 }
 
 var _ Message = (*opMsg)(nil)
-var _ FixableMessage = (*opMsg)(nil)
 
 func newOpMsgResponse(requestID int32, doc bsoncore.Document) *opMsg {
 	section := &opMsgSection{

@@ -27,11 +27,7 @@ var (
 
 // HandshakeIsMasterResponse returns the isMaster response that should be used for connection handshakes.
 func HandshakeIsMasterResponse(requestID int32) Message {
-	return &opReply{
-		respTo:      requestID,
-		numReturned: 1,
-		documents:   []bsoncore.Document{isMasterResponseDocument},
-	}
+	return newOpReply(requestID, isMasterResponseDocument)
 }
 
 // HeartbeatIsMasterResponse returns the isMaster response that should be used for server heartbeats.

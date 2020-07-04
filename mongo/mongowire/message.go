@@ -12,12 +12,8 @@ import (
 type Message interface {
 	CommandDocument() bsoncore.Document
 	Encode() []byte
-	RequestID() int32
-}
-
-// FixableMessage represents a wire message that can encode a fixed version of itself.
-type FixableMessage interface {
 	EncodeFixed(bsoncore.Document) []byte
+	RequestID() int32
 }
 
 // Decode parses the provided wire message into a Message instance.

@@ -116,34 +116,29 @@ func (p *Proxy) handleRequest(conn *conn.Connection) error {
 
 func (p *Proxy) handleProxiedRequest(requestMsg mongowire.Message, cmdName string, conn *connection.Connection) error {
 	fixerSet := p.parser.Parse(cmdName)
-	fixedCmd, err := fixerSet.FixRequest(requestMsg.CommandDocument())
+
+	// Get a wire message for the fixed request.
+	fixedRequest, err := fixerSet.FixRequest(requestMsg.CommandDocument())
 	if err != nil {
 		return err
 	}
+	encodedRequest := requestMsg.EncodeFixed(fixedRequest)
 
-	fixableRequestMsg, ok := requestMsg.(mongowire.FixableMessage)
-	if !ok {
-		return fmt.Errorf("expected request message of type %T to be a FixableMessage", requestMsg)
-	}
-
-	encodedRequest := fixableRequestMsg.EncodeFixed(fixedCmd)
+	// Send the fixed request to the server and get a response.
 	responseBytes, err := p.client.RoundTrip(context.TODO(), encodedRequest)
 	if err != nil {
 		return err
 	}
-
 	responseMsg, err := mongowire.Decode(responseBytes)
 	if err != nil {
 		return err
 	}
-	fixableResponseMsg, ok := responseMsg.(mongowire.FixableMessage)
-	if !ok {
-		return fmt.Errorf("expected response message of type %T to be a FixableMessage", responseMsg)
-	}
+
+	// Get a wire message for the fixed response and send that back to the client.
 	fixedResponse, err := fixerSet.FixResponse(responseMsg.CommandDocument())
 	if err != nil {
 		return err
 	}
-	encodedResponse := fixableResponseMsg.EncodeFixed(fixedResponse)
+	encodedResponse := responseMsg.EncodeFixed(fixedResponse)
 	return conn.WriteWireMessage(encodedResponse)
 }
