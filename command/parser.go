@@ -19,13 +19,17 @@ var (
 
 // Parser parsers command names and maps them to Fixer implementations.
 type Parser struct {
-	fixers map[string]Fixer
+	fixers       map[string]Fixer
+	defaultFixer Fixer
 }
 
 // NewParser initializes a new Parser instance.
 func NewParser() *Parser {
 	p := &Parser{
 		fixers: make(map[string]Fixer),
+	}
+	p.defaultFixer = compositeFixer{
+		dbKey: p.databaseNameValueFixer,
 	}
 
 	return p
@@ -38,39 +42,20 @@ func (p *Parser) Parse(cmdName string) Fixer {
 		panic("not implemented")
 	}
 
-	return fixerFunc(p.databaseNameFixer)
+	return p.defaultFixer
 }
 
-// POC for a Fixer implementation that will replace the $db value in the command document with "fixed<dbValue>"
-func (p *Parser) databaseNameFixer(cmd bsoncore.Document) (bsoncore.Document, error) {
-	elems, err := cmd.Elements()
-	if err != nil {
-		return nil, err
+// valueFixer implementation for the $db value in a document.
+func (p *Parser) databaseNameValueFixer(val bsoncore.Value, dst bsoncore.Document) (bsoncore.Document, error) {
+	db, ok := val.StringValueOK()
+	if !ok {
+		return nil, fmt.Errorf("expected $db value to be string, got %s", val.Type)
 	}
 
-	idx, fixed := bsoncore.AppendDocumentStart(nil)
-	for _, elem := range elems {
-		if key := elem.Key(); key != dbKey {
-			fixed = bsoncore.AppendValueElement(fixed, key, elem.Value())
-			continue
-		}
-
-		val := elem.Value()
-		db, ok := val.StringValueOK()
-		if !ok {
-			return nil, fmt.Errorf("expected $db value to string, got %s", val.Type)
-		}
-
-		fixedDB := db
-		if _, ok := noopDatabaseNames[db]; !ok {
-			fixedDB = fmt.Sprintf("fixed%s", db)
-		}
-		fixed = bsoncore.AppendStringElement(fixed, dbKey, fixedDB)
+	fixedDB := db
+	if _, ok := noopDatabaseNames[db]; !ok {
+		fixedDB = fmt.Sprintf("fixed%s", db)
 	}
-
-	fixed, err = bsoncore.AppendDocumentEnd(fixed, idx)
-	if err != nil {
-		return nil, err
-	}
-	return fixed, nil
+	dst = bsoncore.AppendStringElement(dst, dbKey, fixedDB)
+	return dst, nil
 }
