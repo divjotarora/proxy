@@ -48,7 +48,7 @@ func NewParser() *Parser {
 		fixers: make(map[string]FixerSet),
 	}
 	p.defaultRequestFixer = compositeFixer{
-		dbKey: p.databaseNameValueFixer,
+		dbKey: valueFixerFunc(p.databaseNameValueFixer),
 	}
 	p.defaultResponseFixer = fixerFunc(noopFixer)
 	p.defaultFixerSet = FixerSet{
@@ -70,7 +70,7 @@ func (p *Parser) Parse(cmdName string) FixerSet {
 
 func (p *Parser) register(cmdName string, requestFixer compositeFixer, responseFixer Fixer) {
 	fullRequestFixer := compositeFixer{
-		dbKey: p.databaseNameValueFixer,
+		dbKey: valueFixerFunc(p.databaseNameValueFixer),
 	}
 	for k, v := range requestFixer {
 		fullRequestFixer[k] = v
@@ -98,15 +98,5 @@ func (p *Parser) databaseNameValueFixer(val bsoncore.Value, dst bsoncore.Documen
 		fixedDB = fmt.Sprintf("fixed%s", db)
 	}
 	dst = bsoncore.AppendStringElement(dst, dbKey, fixedDB)
-	return dst, nil
-}
-
-func cursorValueFixer(val bsoncore.Value, dst bsoncore.Document) (bsoncore.Document, error) {
-	cursor, ok := val.DocumentOK()
-	if !ok {
-		return nil, fmt.Errorf("expected cursor value to be a document, got %s", val.Type)
-	}
-
-	dst = bsoncore.AppendDocumentElement(dst, "cursor", cursor)
 	return dst, nil
 }

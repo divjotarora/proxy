@@ -1,6 +1,8 @@
 package command
 
-import "go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
+import (
+	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
+)
 
 // Fixer is responsible for fixing command and response documents to add or remove information when proxying messages.
 type Fixer interface {
@@ -18,37 +20,4 @@ func (f fixerFunc) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
 
 func noopFixer(doc bsoncore.Document) (bsoncore.Document, error) {
 	return doc, nil
-}
-
-type valueFixer func(bsoncore.Value, bsoncore.Document) (bsoncore.Document, error)
-
-type compositeFixer map[string]valueFixer
-
-var _ Fixer = compositeFixer(nil)
-
-func (cf compositeFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
-	elems, err := doc.Elements()
-	if err != nil {
-		return nil, err
-	}
-
-	idx, fixed := bsoncore.AppendDocumentStart(nil)
-	for _, elem := range elems {
-		key := elem.Key()
-		val := elem.Value()
-
-		vf, ok := cf[key]
-		if !ok {
-			fixed = bsoncore.AppendValueElement(fixed, key, elem.Value())
-			continue
-		}
-
-		fixed, err = vf(val, fixed)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	fixed, _ = bsoncore.AppendDocumentEnd(fixed, idx)
-	return fixed, nil
 }
