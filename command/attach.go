@@ -3,7 +3,7 @@ package command
 func attachFixers(p *Parser) {
 	// listCollections
 	listCollResponseFixer := compositeFixer{
-		"cursor": newCursorValueFixer(nil),
+		"cursor": newDefaultCursorValueFixer(),
 	}
 	p.register("listCollections", nil, listCollResponseFixer)
 }

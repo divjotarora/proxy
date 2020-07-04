@@ -6,7 +6,6 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
-// type valueFixer func(bsoncore.Value, bsoncore.Document) (bsoncore.Document, error)
 type valueFixer interface {
 	fixValue(bsoncore.Value, bsoncore.Document) (bsoncore.Document, error)
 }
@@ -52,7 +51,7 @@ func (cf compositeFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
 
 type documentValueFixer struct {
 	key           string
-	internalFixer compositeFixer
+	internalFixer Fixer
 }
 
 func newDocumentValueFixer(key string, cf compositeFixer) *documentValueFixer {
@@ -73,5 +72,40 @@ func (dvf *documentValueFixer) fixValue(val bsoncore.Value, dst bsoncore.Documen
 		return nil, err
 	}
 	dst = bsoncore.AppendDocumentElement(dst, dvf.key, fixed)
+	return dst, nil
+}
+
+type arrayValueFixer struct {
+	key           string
+	internalFixer valueFixer
+}
+
+func newArrayValueFixer(key string, vf valueFixer) *arrayValueFixer {
+	return &arrayValueFixer{
+		key:           key,
+		internalFixer: vf,
+	}
+}
+
+func (avf *arrayValueFixer) fixValue(val bsoncore.Value, dst bsoncore.Document) (bsoncore.Document, error) {
+	arr, ok := val.ArrayOK()
+	if !ok {
+		return nil, fmt.Errorf("expected value for key %s to be array, got %s", avf.key, val.Type)
+	}
+
+	values, err := arr.Values()
+	if err != nil {
+		return nil, err
+	}
+
+	var idx int32
+	idx, dst = bsoncore.AppendArrayStart(dst)
+	for _, val := range values {
+		dst, err = avf.internalFixer.fixValue(val, dst)
+		if err != nil {
+			return nil, err
+		}
+	}
+	dst, _ = bsoncore.AppendArrayEnd(dst, idx)
 	return dst, nil
 }

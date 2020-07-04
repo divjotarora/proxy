@@ -6,12 +6,9 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
-func newCursorValueFixer(cf compositeFixer) valueFixer {
+func newDefaultCursorValueFixer() valueFixer {
 	fixers := compositeFixer{
 		"ns": valueFixerFunc(fixCursorNSValue),
-	}
-	for k, v := range cf {
-		fixers[k] = v
 	}
 
 	return newDocumentValueFixer("cursor", fixers)
