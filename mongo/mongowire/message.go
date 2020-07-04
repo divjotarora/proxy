@@ -8,18 +8,19 @@ import (
 	"go.mongodb.org/mongo-driver/x/mongo/driver/wiremessage"
 )
 
-// Message TODO
+// Message represents a wire message that can encode itself.
 type Message interface {
 	CommandDocument() bsoncore.Document
 	Encode() []byte
 	RequestID() int32
 }
 
+// FixableMessage represents a wire message that can encode a fixed version of itself.
 type FixableMessage interface {
 	EncodeFixed(bsoncore.Document) []byte
 }
 
-// Decode TODO
+// Decode parses the provided wire message into a Message instance.
 func Decode(wm []byte) (Message, error) {
 	wmLength := len(wm)
 	length, reqID, respTo, opCode, wmBody, ok := wiremessage.ReadHeader(wm)

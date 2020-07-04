@@ -25,7 +25,7 @@ var (
 	)
 )
 
-// HandshakeIsMasterResponse TODO
+// HandshakeIsMasterResponse returns the isMaster response that should be used for connection handshakes.
 func HandshakeIsMasterResponse(requestID int32) Message {
 	return &opReply{
 		respTo:      requestID,
@@ -34,7 +34,7 @@ func HandshakeIsMasterResponse(requestID int32) Message {
 	}
 }
 
-// HeartbeatIsMasterResponse TODO
+// HeartbeatIsMasterResponse returns the isMaster response that should be used for server heartbeats.
 func HeartbeatIsMasterResponse(requestID int32) Message {
 	return newOpMsgResponse(requestID, isMasterResponseDocument)
 }

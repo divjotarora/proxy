@@ -11,15 +11,18 @@ const (
 )
 
 var (
+	// noopDatabaseNames contains names of databases that should be proxied without fixing.
 	noopDatabaseNames = map[string]struct{}{
 		"admin": {},
 	}
 )
 
+// Parser parsers command names and maps them to Fixer implementations.
 type Parser struct {
 	fixers map[string]Fixer
 }
 
+// NewParser initializes a new Parser instance.
 func NewParser() *Parser {
 	p := &Parser{
 		fixers: make(map[string]Fixer),
@@ -28,6 +31,7 @@ func NewParser() *Parser {
 	return p
 }
 
+// Parse returns the Fixer for the given command.
 func (p *Parser) Parse(cmdName string) Fixer {
 	_, ok := p.fixers[cmdName]
 	if ok {

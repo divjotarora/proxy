@@ -14,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// Proxy TODO
+// Proxy represents a network proxy that sits between a client and a MongoDB server.
 type Proxy struct {
 	network string
 	address string
@@ -23,7 +23,7 @@ type Proxy struct {
 	wg      sync.WaitGroup
 }
 
-// NewProxy TODO
+// NewProxy creates a new Proxy instance.
 func NewProxy(network, address string, clientOpts *options.ClientOptions) (*Proxy, error) {
 	client, err := mongo.NewClient(context.TODO(), clientOpts)
 	if err != nil {
@@ -39,7 +39,8 @@ func NewProxy(network, address string, clientOpts *options.ClientOptions) (*Prox
 	return p, nil
 }
 
-// Run TODO
+// Run starts the proxy. This method blocks indefinitely listening for new connections and starts a goroutine to
+// handle messages for each accepted connection.
 func (p *Proxy) Run() error {
 	listener, err := net.Listen(p.network, p.address)
 	if err != nil {
@@ -85,9 +86,13 @@ func (p *Proxy) handleConnection(conn *conn.Conn) error {
 }
 
 func (p *Proxy) handleRequest(conn *conn.Conn) error {
-	msg, err := conn.ReadWireMessage(nil)
+	msgBytes, err := conn.ReadWireMessage(nil)
 	if err != nil {
-		return fmt.Errorf("error reading user message: %w", err)
+		return err
+	}
+	msg, err := mongowire.Decode(msgBytes)
+	if err != nil {
+		return err
 	}
 
 	cmd := msg.CommandDocument()
