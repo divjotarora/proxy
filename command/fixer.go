@@ -12,8 +12,12 @@ type fixerFunc func(bsoncore.Document) (bsoncore.Document, error)
 
 var _ Fixer = fixerFunc(nil)
 
-func (f fixerFunc) Fix(cmd bsoncore.Document) (bsoncore.Document, error) {
-	return f(cmd)
+func (f fixerFunc) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
+	return f(doc)
+}
+
+func noopFixer(doc bsoncore.Document) (bsoncore.Document, error) {
+	return doc, nil
 }
 
 type valueFixer func(bsoncore.Value, bsoncore.Document) (bsoncore.Document, error)

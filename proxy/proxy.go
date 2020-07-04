@@ -104,38 +104,46 @@ func (p *Proxy) handleRequest(conn *conn.Connection) error {
 	}
 
 	cmd := msg.CommandDocument()
-	var responseMsg mongowire.Message
 
 	switch cmdName := cmd.Index(0).Key(); cmdName {
 	case "isMaster", "ismaster":
-		responseMsg = mongowire.HeartbeatIsMasterResponse(msg.RequestID())
+		heartbeatResponse := mongowire.HeartbeatIsMasterResponse(msg.RequestID())
+		return conn.WriteWireMessage(heartbeatResponse.Encode())
 	default:
-		responseMsg, err = p.handleProxiedRequest(msg, cmdName)
+		return p.handleProxiedRequest(msg, cmdName, conn)
 	}
-	if err != nil {
-		return fmt.Errorf("error handling request: %w", err)
-	}
-
-	return conn.WriteWireMessage(responseMsg.Encode())
 }
 
-func (p *Proxy) handleProxiedRequest(msg mongowire.Message, cmdName string) (mongowire.Message, error) {
-	fixer := p.parser.Parse(cmdName)
-	fixedCmd, err := fixer.Fix(msg.CommandDocument())
+func (p *Proxy) handleProxiedRequest(requestMsg mongowire.Message, cmdName string, conn *connection.Connection) error {
+	fixerSet := p.parser.Parse(cmdName)
+	fixedCmd, err := fixerSet.FixRequest(requestMsg.CommandDocument())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	fixableMsg, ok := msg.(mongowire.FixableMessage)
+	fixableRequestMsg, ok := requestMsg.(mongowire.FixableMessage)
 	if !ok {
-		return nil, fmt.Errorf("expected message of type %T to be a FixableMessage", msg)
+		return fmt.Errorf("expected request message of type %T to be a FixableMessage", requestMsg)
 	}
 
-	encoded := fixableMsg.EncodeFixed(fixedCmd)
-	responseBytes, err := p.client.RoundTrip(context.TODO(), encoded)
+	encodedRequest := fixableRequestMsg.EncodeFixed(fixedCmd)
+	responseBytes, err := p.client.RoundTrip(context.TODO(), encodedRequest)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return mongowire.Decode(responseBytes)
+	responseMsg, err := mongowire.Decode(responseBytes)
+	if err != nil {
+		return err
+	}
+	fixableResponseMsg, ok := responseMsg.(mongowire.FixableMessage)
+	if !ok {
+		return fmt.Errorf("expected response message of type %T to be a FixableMessage", responseMsg)
+	}
+	fixedResponse, err := fixerSet.FixResponse(responseMsg.CommandDocument())
+	if err != nil {
+		return err
+	}
+	encodedResponse := fixableResponseMsg.EncodeFixed(fixedResponse)
+	return conn.WriteWireMessage(encodedResponse)
 }

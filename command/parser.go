@@ -17,32 +17,51 @@ var (
 	}
 )
 
+// FixerSet represents two fixers associated with a command: one for the incoming request to the underlying server and
+// one for the outgoing response back to the client.
+type FixerSet struct {
+	requestFixer  Fixer
+	responseFixer Fixer
+}
+
+// FixRequest calls the registered Fixer for the incoming request to the underlying server.
+func (f FixerSet) FixRequest(request bsoncore.Document) (bsoncore.Document, error) {
+	return f.requestFixer.Fix(request)
+}
+
+// FixResponse calls the registered Fixer for the outgoing response back to the client.
+func (f FixerSet) FixResponse(response bsoncore.Document) (bsoncore.Document, error) {
+	return f.responseFixer.Fix(response)
+}
+
 // Parser parsers command names and maps them to Fixer implementations.
 type Parser struct {
-	fixers       map[string]Fixer
-	defaultFixer Fixer
+	fixers          map[string]FixerSet
+	defaultFixerSet FixerSet
 }
 
 // NewParser initializes a new Parser instance.
 func NewParser() *Parser {
 	p := &Parser{
-		fixers: make(map[string]Fixer),
+		fixers: make(map[string]FixerSet),
 	}
-	p.defaultFixer = compositeFixer{
-		dbKey: p.databaseNameValueFixer,
+	p.defaultFixerSet = FixerSet{
+		requestFixer: compositeFixer{
+			dbKey: p.databaseNameValueFixer,
+		},
+		responseFixer: fixerFunc(noopFixer),
 	}
 
 	return p
 }
 
-// Parse returns the Fixer for the given command.
-func (p *Parser) Parse(cmdName string) Fixer {
+// Parse returns the FixerSet for the given command.
+func (p *Parser) Parse(cmdName string) FixerSet {
 	_, ok := p.fixers[cmdName]
 	if ok {
 		panic("not implemented")
 	}
-
-	return p.defaultFixer
+	return p.defaultFixerSet
 }
 
 // valueFixer implementation for the $db value in a document.
