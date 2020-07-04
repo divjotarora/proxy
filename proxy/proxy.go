@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -8,21 +9,30 @@ import (
 
 	"github.com/divjotarora/proxy/conn"
 	"github.com/divjotarora/proxy/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Proxy TODO
 type Proxy struct {
 	network string
 	address string
+	client  *mongo.Client
 	wg      sync.WaitGroup
 }
 
 // NewProxy TODO
-func NewProxy(network, address string) *Proxy {
-	return &Proxy{
+func NewProxy(network, address string, clientOpts *options.ClientOptions) (*Proxy, error) {
+	client, err := mongo.NewClient(context.TODO(), clientOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	p := &Proxy{
 		network: network,
 		address: address,
+		client:  client,
 	}
+	return p, nil
 }
 
 // Run TODO
