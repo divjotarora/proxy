@@ -36,8 +36,10 @@ func (f FixerSet) FixResponse(response bsoncore.Document) (bsoncore.Document, er
 
 // Parser parsers command names and maps them to Fixer implementations.
 type Parser struct {
-	fixers          map[string]FixerSet
-	defaultFixerSet FixerSet
+	fixers               map[string]FixerSet
+	defaultFixerSet      FixerSet
+	defaultRequestFixer  compositeFixer
+	defaultResponseFixer Fixer
 }
 
 // NewParser initializes a new Parser instance.
@@ -45,23 +47,43 @@ func NewParser() *Parser {
 	p := &Parser{
 		fixers: make(map[string]FixerSet),
 	}
+	p.defaultRequestFixer = compositeFixer{
+		dbKey: p.databaseNameValueFixer,
+	}
+	p.defaultResponseFixer = fixerFunc(noopFixer)
 	p.defaultFixerSet = FixerSet{
-		requestFixer: compositeFixer{
-			dbKey: p.databaseNameValueFixer,
-		},
-		responseFixer: fixerFunc(noopFixer),
+		requestFixer:  p.defaultRequestFixer,
+		responseFixer: p.defaultResponseFixer,
 	}
 
+	attachFixers(p)
 	return p
 }
 
 // Parse returns the FixerSet for the given command.
 func (p *Parser) Parse(cmdName string) FixerSet {
-	_, ok := p.fixers[cmdName]
-	if ok {
-		panic("not implemented")
+	if fixerSet, ok := p.fixers[cmdName]; ok {
+		return fixerSet
 	}
 	return p.defaultFixerSet
+}
+
+func (p *Parser) register(cmdName string, requestFixer compositeFixer, responseFixer Fixer) {
+	fullRequestFixer := compositeFixer{
+		dbKey: p.databaseNameValueFixer,
+	}
+	for k, v := range requestFixer {
+		fullRequestFixer[k] = v
+	}
+
+	if responseFixer == nil {
+		responseFixer = p.defaultResponseFixer
+	}
+	set := FixerSet{
+		requestFixer:  fullRequestFixer,
+		responseFixer: responseFixer,
+	}
+	p.fixers[cmdName] = set
 }
 
 // valueFixer implementation for the $db value in a document.
@@ -76,5 +98,15 @@ func (p *Parser) databaseNameValueFixer(val bsoncore.Value, dst bsoncore.Documen
 		fixedDB = fmt.Sprintf("fixed%s", db)
 	}
 	dst = bsoncore.AppendStringElement(dst, dbKey, fixedDB)
+	return dst, nil
+}
+
+func cursorValueFixer(val bsoncore.Value, dst bsoncore.Document) (bsoncore.Document, error) {
+	cursor, ok := val.DocumentOK()
+	if !ok {
+		return nil, fmt.Errorf("expected cursor value to be a document, got %s", val.Type)
+	}
+
+	dst = bsoncore.AppendDocumentElement(dst, "cursor", cursor)
 	return dst, nil
 }
