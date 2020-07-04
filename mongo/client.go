@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/divjotarora/proxy/mongo/mongowire"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -44,23 +43,17 @@ func (c *Client) Disconnect(ctx context.Context) error {
 	return c.client.Disconnect(ctx)
 }
 
-func (c *Client) RoundTrip(ctx context.Context, msg mongowire.Message) (mongowire.Message, error) {
+func (c *Client) RoundTrip(ctx context.Context, msg []byte) ([]byte, error) {
 	conn, err := c.server.Connection(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	encodedMsg := msg.Encode()
-	if err := conn.WriteWireMessage(ctx, encodedMsg); err != nil {
+	if err := conn.WriteWireMessage(ctx, msg); err != nil {
 		return nil, err
 	}
 
-	responseBytes, err := conn.ReadWireMessage(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return mongowire.Decode(responseBytes)
+	return conn.ReadWireMessage(ctx, nil)
 }
 
 func extractTopology(c *mongo.Client) *topology.Topology {

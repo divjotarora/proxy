@@ -10,6 +10,12 @@ const (
 	dbKey = "$db"
 )
 
+var (
+	noopDatabaseNames = map[string]struct{}{
+		"admin": {},
+	}
+)
+
 type Parser struct {
 	fixers map[string]Fixer
 }
@@ -51,7 +57,10 @@ func (p *Parser) databaseNameFixer(cmd bsoncore.Document) (bsoncore.Document, er
 			return nil, fmt.Errorf("expected $db value to string, got %s", val.Type)
 		}
 
-		fixedDB := fmt.Sprintf("fixed%s", db)
+		fixedDB := db
+		if _, ok := noopDatabaseNames[db]; !ok {
+			fixedDB = fmt.Sprintf("fixed%s", db)
+		}
 		fixed = bsoncore.AppendStringElement(fixed, dbKey, fixedDB)
 	}
 

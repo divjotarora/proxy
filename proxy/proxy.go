@@ -107,5 +107,22 @@ func (p *Proxy) handleRequest(conn *conn.Conn) error {
 }
 
 func (p *Proxy) handleProxiedRequest(msg mongowire.Message, cmdName string) (mongowire.Message, error) {
-	return p.client.RoundTrip(context.TODO(), msg)
+	fixer := p.parser.Parse(cmdName)
+	fixedCmd, err := fixer.Fix(msg.CommandDocument())
+	if err != nil {
+		return nil, err
+	}
+
+	fixableMsg, ok := msg.(mongowire.FixableMessage)
+	if !ok {
+		return nil, fmt.Errorf("expected message of type %T to be a FixableMessage", msg)
+	}
+
+	encoded := fixableMsg.EncodeFixed(fixedCmd)
+	responseBytes, err := p.client.RoundTrip(context.TODO(), encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	return mongowire.Decode(responseBytes)
 }

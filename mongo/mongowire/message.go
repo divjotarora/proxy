@@ -16,7 +16,6 @@ type Message interface {
 }
 
 type FixableMessage interface {
-	Message
 	EncodeFixed(bsoncore.Document) []byte
 }
 
