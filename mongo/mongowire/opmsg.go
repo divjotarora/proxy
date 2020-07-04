@@ -58,10 +58,6 @@ func (m *opMsg) CommandDocument() bsoncore.Document {
 	return m.cmd
 }
 
-func (m *opMsg) Database() string {
-	return m.dbName
-}
-
 func (m *opMsg) Encode() []byte {
 	var buffer []byte
 	idx, buffer := wiremessage.AppendHeaderStart(buffer, m.reqID, m.respTo, wiremessage.OpMsg)

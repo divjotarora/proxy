@@ -22,10 +22,6 @@ func (r *opReply) CommandDocument() bsoncore.Document {
 	return r.documents[0]
 }
 
-func (r *opReply) Database() string {
-	return ""
-}
-
 func (r *opReply) Encode() []byte {
 	var buffer []byte
 	idx, buffer := wiremessage.AppendHeaderStart(buffer, 0, r.respTo, wiremessage.OpReply)

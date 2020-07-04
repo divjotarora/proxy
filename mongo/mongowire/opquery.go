@@ -25,10 +25,6 @@ func (q *opQuery) CommandDocument() bsoncore.Document {
 	return q.query
 }
 
-func (q *opQuery) Database() string {
-	return q.dbName
-}
-
 func (q *opQuery) Encode() []byte {
 	var buffer []byte
 	idx, buffer := wiremessage.AppendHeaderStart(buffer, q.reqID, 0, wiremessage.OpQuery)

@@ -11,7 +11,6 @@ import (
 // Message TODO
 type Message interface {
 	CommandDocument() bsoncore.Document
-	Database() string
 	Encode() []byte
 	RequestID() int32
 }
