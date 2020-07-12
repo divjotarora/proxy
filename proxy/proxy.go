@@ -14,15 +14,21 @@ import (
 	"github.com/divjotarora/proxy/mongo"
 	"github.com/divjotarora/proxy/mongo/mongowire"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
+)
+
+var (
+	emptyFixerSet = command.FixerSet{}
 )
 
 // Proxy represents a network proxy that sits between a client and a MongoDB server.
 type Proxy struct {
-	network string
-	address string
-	client  *mongo.Client
-	parser  *command.Parser
-	wg      sync.WaitGroup
+	network   string
+	address   string
+	client    *mongo.Client
+	parser    *command.Parser
+	wg        sync.WaitGroup
+	cursorMap map[int64]string // cursor ID -> originating command name
 }
 
 // NewProxy creates a new Proxy instance.
@@ -33,10 +39,11 @@ func NewProxy(network, address string, clientOpts *options.ClientOptions) (*Prox
 	}
 
 	p := &Proxy{
-		network: network,
-		address: address,
-		client:  client,
-		parser:  command.NewParser(),
+		network:   network,
+		address:   address,
+		client:    client,
+		parser:    command.NewParser(),
+		cursorMap: make(map[int64]string),
 	}
 	return p, nil
 }
@@ -115,7 +122,10 @@ func (p *Proxy) handleRequest(conn *conn.Connection) error {
 }
 
 func (p *Proxy) handleProxiedRequest(requestMsg mongowire.Message, cmdName string, conn *connection.Connection) error {
-	fixerSet := p.parser.Parse(cmdName)
+	fixerSet, err := p.getFixerSet(cmdName, requestMsg.CommandDocument())
+	if err != nil {
+		return err
+	}
 
 	// Get a wire message for the fixed request.
 	fixedRequest, err := fixerSet.FixRequest(requestMsg.CommandDocument())
@@ -134,6 +144,12 @@ func (p *Proxy) handleProxiedRequest(requestMsg mongowire.Message, cmdName strin
 		return err
 	}
 
+	if cmdName != "getMore" {
+		if cursorID, ok := getCursorID(responseMsg.CommandDocument()); ok {
+			p.cursorMap[cursorID] = cmdName
+		}
+	}
+
 	// Get a wire message for the fixed response and send that back to the client.
 	fixedResponse, err := fixerSet.FixResponse(responseMsg.CommandDocument())
 	if err != nil {
@@ -141,4 +157,35 @@ func (p *Proxy) handleProxiedRequest(requestMsg mongowire.Message, cmdName strin
 	}
 	encodedResponse := responseMsg.EncodeFixed(fixedResponse)
 	return conn.WriteWireMessage(encodedResponse)
+}
+
+func (p *Proxy) getFixerSet(cmdName string, doc bsoncore.Document) (command.FixerSet, error) {
+	if cmdName == "getMore" {
+		cursorIDVal := doc.Index(0).Value()
+		cursorID, ok := cursorIDVal.Int64OK()
+		if !ok {
+			return emptyFixerSet, fmt.Errorf("expected getMore value to be int64, got %s", cursorIDVal.Type)
+		}
+
+		originalCmdName, ok := p.cursorMap[cursorID]
+		if !ok {
+			return emptyFixerSet, fmt.Errorf("dangling cursor ID %v", cursorID)
+		}
+		cmdName = originalCmdName
+	}
+
+	return p.parser.Parse(cmdName), nil
+}
+
+func getCursorID(doc bsoncore.Document) (int64, bool) {
+	cursorIDVal, err := doc.LookupErr("cursor", "id")
+	if err != nil {
+		return 0, false
+	}
+
+	cursorID, ok := cursorIDVal.Int64OK()
+	if !ok {
+		return 0, false
+	}
+	return cursorID, true
 }
