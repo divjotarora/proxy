@@ -34,10 +34,8 @@ func (f FixerSet) FixResponse(response bsoncore.Document) (bsoncore.Document, er
 
 // Parser parsers command names and maps them to Fixer implementations.
 type Parser struct {
-	fixers               map[string]FixerSet
-	defaultFixerSet      FixerSet
-	defaultRequestFixer  compositeFixer
-	defaultResponseFixer Fixer
+	fixers          map[string]FixerSet
+	defaultFixerSet FixerSet
 }
 
 // NewParser initializes a new Parser instance.
@@ -45,13 +43,9 @@ func NewParser() *Parser {
 	p := &Parser{
 		fixers: make(map[string]FixerSet),
 	}
-	p.defaultRequestFixer = compositeFixer{
-		dbKey: addDBPrefixValueFixer,
-	}
-	p.defaultResponseFixer = fixerFunc(noopFixer)
 	p.defaultFixerSet = FixerSet{
-		requestFixer:  p.defaultRequestFixer,
-		responseFixer: p.defaultResponseFixer,
+		requestFixer:  p.createDefaultRequestFixer(),
+		responseFixer: p.createDefaultResponseFixer(),
 	}
 
 	attachFixers(p)
@@ -66,20 +60,32 @@ func (p *Parser) Parse(cmdName string) FixerSet {
 	return p.defaultFixerSet
 }
 
-func (p *Parser) register(cmdName string, requestFixer compositeFixer, responseFixer Fixer) {
-	fullRequestFixer := compositeFixer{
+func (p *Parser) createDefaultRequestFixer() compositeFixer {
+	return compositeFixer{
 		dbKey: addDBPrefixValueFixer,
 	}
+}
+
+func (p *Parser) createDefaultResponseFixer() compositeFixer {
+	return compositeFixer{
+		"writeErrors": writeErrorsFixer,
+	}
+}
+
+func (p *Parser) register(cmdName string, requestFixer compositeFixer, responseFixer compositeFixer) {
+	fullRequestFixer := p.createDefaultRequestFixer()
 	for k, v := range requestFixer {
 		fullRequestFixer[k] = v
 	}
 
-	if responseFixer == nil {
-		responseFixer = p.defaultResponseFixer
+	fullResponseFixer := p.createDefaultResponseFixer()
+	for k, v := range responseFixer {
+		fullResponseFixer[k] = v
 	}
+
 	set := FixerSet{
 		requestFixer:  fullRequestFixer,
-		responseFixer: responseFixer,
+		responseFixer: fullResponseFixer,
 	}
 	p.fixers[cmdName] = set
 }

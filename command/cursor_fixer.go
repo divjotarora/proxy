@@ -1,6 +1,6 @@
 package command
 
-func newCursorResponseFixer(batchDocsFixer valueFixer) Fixer {
+func newCursorResponseFixer(batchDocsFixer valueFixer) compositeFixer {
 	fixers := compositeFixer{
 		"ns": removeDBPrefixValueFixer,
 	}

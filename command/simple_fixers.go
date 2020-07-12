@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
@@ -35,3 +36,16 @@ var removeDBPrefixValueFixer valueFixerFunc = func(val bsoncore.Value, key strin
 	dst = bsoncore.AppendStringElement(dst, key, fixedDB)
 	return dst, nil
 }
+
+var writeErrorsFixer = newArrayValueFixer(newDocumentValueFixer(compositeFixer{
+	"errmsg": valueFixerFunc(func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+		errmsg, ok := val.StringValueOK()
+		if !ok {
+			return dst, fmt.Errorf("expected errmsg value to be of type string, got %s", val.Type)
+		}
+
+		fixedErrMsg := strings.ReplaceAll(errmsg, "fixed", "")
+		dst = bsoncore.AppendStringElement(dst, key, fixedErrMsg)
+		return dst, nil
+	}),
+}))
