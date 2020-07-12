@@ -48,7 +48,11 @@ func (m *opMsg) Encode() []byte {
 func (m *opMsg) EncodeFixed(fixedCmd bsoncore.Document) []byte {
 	var buffer []byte
 	idx, buffer := wiremessage.AppendHeaderStart(buffer, m.reqID, m.respTo, wiremessage.OpMsg)
-	buffer = wiremessage.AppendMsgFlags(buffer, m.flags)
+
+	// Disable ChecksumPresent flag because the original message likely changed, so the original would not be valid.
+	flags := m.flags &^ wiremessage.ChecksumPresent
+	buffer = wiremessage.AppendMsgFlags(buffer, flags)
+
 	for _, section := range m.sections {
 		buffer = wiremessage.AppendMsgSectionType(buffer, section.sectionType)
 
@@ -89,8 +93,21 @@ func decodeMsg(reqID, respTo int32, wm []byte) (*opMsg, error) {
 	if !ok {
 		return nil, errors.New("malformed wire message: missing OP_MSG flags")
 	}
+	hasChecksum := m.flags&wiremessage.ChecksumPresent == wiremessage.ChecksumPresent
 
 	for len(wm) > 0 {
+		if hasChecksum && len(wm) == 4 {
+			// If the ChecksumPresent flag is set, the last four bytes of the message represent a checksum, not a
+			// message section.
+
+			_, wm, ok = wiremessage.ReadMsgChecksum(wm)
+			if !ok {
+				return nil, errors.New("malformed wire messaage: insuffient bytes to read checksum")
+			}
+
+			break
+		}
+
 		var section opMsgSection
 		section.sectionType, wm, ok = wiremessage.ReadMsgSectionType(wm)
 		if !ok {
