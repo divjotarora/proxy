@@ -64,7 +64,7 @@ type documentValueFixer struct {
 	internalFixer Fixer
 }
 
-func newDocumentValueFixer(cf compositeFixer) *documentValueFixer {
+func newDocumentValueFixer(cf Fixer) *documentValueFixer {
 	return &documentValueFixer{
 		internalFixer: cf,
 	}

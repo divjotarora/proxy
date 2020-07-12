@@ -2,7 +2,7 @@ package command
 
 func newCursorResponseFixer(batchDocsFixer valueFixer) Fixer {
 	fixers := compositeFixer{
-		"ns": valueFixerFunc(removeDBPrefixValueFixer),
+		"ns": removeDBPrefixValueFixer,
 	}
 	if batchDocsFixer != nil {
 		avf := newArrayValueFixer(batchDocsFixer)

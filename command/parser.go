@@ -1,8 +1,6 @@
 package command
 
 import (
-	"fmt"
-
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
@@ -48,7 +46,7 @@ func NewParser() *Parser {
 		fixers: make(map[string]FixerSet),
 	}
 	p.defaultRequestFixer = compositeFixer{
-		dbKey: valueFixerFunc(addDBPrefixValueFixer),
+		dbKey: addDBPrefixValueFixer,
 	}
 	p.defaultResponseFixer = fixerFunc(noopFixer)
 	p.defaultFixerSet = FixerSet{
@@ -70,7 +68,7 @@ func (p *Parser) Parse(cmdName string) FixerSet {
 
 func (p *Parser) register(cmdName string, requestFixer compositeFixer, responseFixer Fixer) {
 	fullRequestFixer := compositeFixer{
-		dbKey: valueFixerFunc(addDBPrefixValueFixer),
+		dbKey: addDBPrefixValueFixer,
 	}
 	for k, v := range requestFixer {
 		fullRequestFixer[k] = v
@@ -84,34 +82,4 @@ func (p *Parser) register(cmdName string, requestFixer compositeFixer, responseF
 		responseFixer: responseFixer,
 	}
 	p.fixers[cmdName] = set
-}
-
-// valueFixer implementation for the $db value in a document.
-func addDBPrefixValueFixer(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
-	db, ok := val.StringValueOK()
-	if !ok {
-		return nil, fmt.Errorf("expected $db value to be string, got %s", val.Type)
-	}
-
-	fixedDB := db
-	if _, ok := noopDatabaseNames[db]; !ok {
-		fixedDB = fmt.Sprintf("fixed%s", db)
-	}
-	dst = bsoncore.AppendStringElement(dst, key, fixedDB)
-	return dst, nil
-}
-
-// valueFixer implementation for the $db value in a document.
-func removeDBPrefixValueFixer(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
-	db, ok := val.StringValueOK()
-	if !ok {
-		return nil, fmt.Errorf("expected $db value to be string, got %s", val.Type)
-	}
-
-	fixedDB := db
-	if _, ok := noopDatabaseNames[db]; !ok {
-		fixedDB = db[5:] // remove "fixed" prefix
-	}
-	dst = bsoncore.AppendStringElement(dst, key, fixedDB)
-	return dst, nil
 }
