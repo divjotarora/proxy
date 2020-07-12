@@ -18,8 +18,8 @@ var (
 // FixerSet represents two fixers associated with a command: one for the incoming request to the underlying server and
 // one for the outgoing response back to the client.
 type FixerSet struct {
-	requestFixer  Fixer
-	responseFixer Fixer
+	requestFixer  DocumentFixer
+	responseFixer DocumentFixer
 }
 
 // FixRequest calls the registered Fixer for the incoming request to the underlying server.
@@ -60,19 +60,19 @@ func (p *Parser) Parse(cmdName string) FixerSet {
 	return p.defaultFixerSet
 }
 
-func (p *Parser) createDefaultRequestFixer() compositeFixer {
-	return compositeFixer{
+func (p *Parser) createDefaultRequestFixer() DocumentFixer {
+	return DocumentFixer{
 		dbKey: addDBPrefixValueFixer,
 	}
 }
 
-func (p *Parser) createDefaultResponseFixer() compositeFixer {
-	return compositeFixer{
+func (p *Parser) createDefaultResponseFixer() DocumentFixer {
+	return DocumentFixer{
 		"writeErrors": writeErrorsFixer,
 	}
 }
 
-func (p *Parser) register(cmdName string, requestFixer compositeFixer, responseFixer compositeFixer) {
+func (p *Parser) register(cmdName string, requestFixer DocumentFixer, responseFixer DocumentFixer) {
 	fullRequestFixer := p.createDefaultRequestFixer()
 	for k, v := range requestFixer {
 		fullRequestFixer[k] = v

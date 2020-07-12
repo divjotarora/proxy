@@ -7,8 +7,8 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
-// valueFixerFunc to add a prefix for $db values in requests.
-var addDBPrefixValueFixer valueFixerFunc = func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+// ValueFixerFunc to add a prefix for $db values in requests.
+var addDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
 	db, ok := val.StringValueOK()
 	if !ok {
 		return nil, fmt.Errorf("expected $db value to be string, got %s", val.Type)
@@ -22,8 +22,8 @@ var addDBPrefixValueFixer valueFixerFunc = func(val bsoncore.Value, key string, 
 	return dst, nil
 }
 
-// valueFixerFunc to remove the database name prefix in responses.
-var removeDBPrefixValueFixer valueFixerFunc = func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+// ValueFixerFunc to remove the database name prefix in responses.
+var removeDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
 	db, ok := val.StringValueOK()
 	if !ok {
 		return nil, fmt.Errorf("expected $db value to be string, got %s", val.Type)
@@ -37,8 +37,8 @@ var removeDBPrefixValueFixer valueFixerFunc = func(val bsoncore.Value, key strin
 	return dst, nil
 }
 
-var writeErrorsFixer = newArrayValueFixer(newDocumentValueFixer(compositeFixer{
-	"errmsg": valueFixerFunc(func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+var writeErrorsFixer = newArrayValueFixer(newDocumentValueFixer(DocumentFixer{
+	"errmsg": ValueFixerFunc(func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
 		errmsg, ok := val.StringValueOK()
 		if !ok {
 			return dst, fmt.Errorf("expected errmsg value to be of type string, got %s", val.Type)

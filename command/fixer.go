@@ -7,33 +7,25 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
-type Fixer interface {
-	Fix(bsoncore.Document) (bsoncore.Document, error)
+// ValueFixer is implemented by types that can fix a single value in a document and write the fixed value out to the
+// provided destination document.
+type ValueFixer interface {
+	fixValue(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error)
 }
 
-type fixerFunc func(bsoncore.Document) (bsoncore.Document, error)
+// ValueFixerFunc is a standalone function implementation of ValueFixer.
+type ValueFixerFunc func(bsoncore.Value, string, bsoncore.Document) (bsoncore.Document, error)
 
-func (f fixerFunc) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
-	return f(doc)
-}
-
-func noopFixer(doc bsoncore.Document) (bsoncore.Document, error) {
-	return doc, nil
-}
-
-type valueFixer interface {
-	fixValue(bsoncore.Value, string, bsoncore.Document) (bsoncore.Document, error)
-}
-
-type valueFixerFunc func(bsoncore.Value, string, bsoncore.Document) (bsoncore.Document, error)
-
-func (vff valueFixerFunc) fixValue(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+func (vff ValueFixerFunc) fixValue(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
 	return vff(val, key, dst)
 }
 
-type compositeFixer map[string]valueFixer
+// DocumentFixer represents a set of ValueFixer instances, each mapped to a BSON key.
+type DocumentFixer map[string]ValueFixer
 
-func (cf compositeFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
+// Fix iterates over the provided document to fix values using the registered ValueFixer instances and returns the
+// fixed document.
+func (df DocumentFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
 	elems, err := doc.Elements()
 	if err != nil {
 		return nil, err
@@ -44,7 +36,7 @@ func (cf compositeFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
 		key := elem.Key()
 		val := elem.Value()
 
-		vf, ok := cf[key]
+		vf, ok := df[key]
 		if !ok {
 			fixed = bsoncore.AppendValueElement(fixed, key, elem.Value())
 			continue
@@ -60,11 +52,12 @@ func (cf compositeFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
 	return fixed, nil
 }
 
+// documentValueFixer is the ValueFixer implementation for BSON subdocument values.
 type documentValueFixer struct {
-	internalFixer Fixer
+	internalFixer DocumentFixer
 }
 
-func newDocumentValueFixer(cf Fixer) *documentValueFixer {
+func newDocumentValueFixer(cf DocumentFixer) *documentValueFixer {
 	return &documentValueFixer{
 		internalFixer: cf,
 	}
@@ -84,11 +77,12 @@ func (dvf *documentValueFixer) fixValue(val bsoncore.Value, key string, dst bson
 	return dst, nil
 }
 
+// arrayValueFixer is the ValueFixer implementation for BSON arrays.
 type arrayValueFixer struct {
-	internalFixer valueFixer
+	internalFixer ValueFixer
 }
 
-func newArrayValueFixer(vf valueFixer) *arrayValueFixer {
+func newArrayValueFixer(vf ValueFixer) *arrayValueFixer {
 	return &arrayValueFixer{
 		internalFixer: vf,
 	}
