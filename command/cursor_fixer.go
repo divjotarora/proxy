@@ -1,6 +1,6 @@
 package command
 
-func newCursorValueFixer(batchDocsFixer valueFixer) valueFixer {
+func newCursorResponseFixer(batchDocsFixer valueFixer) Fixer {
 	fixers := compositeFixer{
 		"ns": valueFixerFunc(removeDBPrefixValueFixer),
 	}
@@ -10,5 +10,7 @@ func newCursorValueFixer(batchDocsFixer valueFixer) valueFixer {
 		fixers["nextBatch"] = avf
 	}
 
-	return newDocumentValueFixer(fixers)
+	return compositeFixer{
+		"cursor": newDocumentValueFixer(fixers),
+	}
 }

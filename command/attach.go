@@ -9,6 +9,17 @@ func attachFixers(p *Parser) {
 			"ns": valueFixerFunc(removeDBPrefixValueFixer),
 		}),
 	})
-	listCollsCursorFixer := newCursorValueFixer(listCollsBatchFixer)
-	p.register("listCollections", nil, compositeFixer{"cursor": listCollsCursorFixer})
+	listCollsResponseFixer := newCursorResponseFixer(listCollsBatchFixer)
+	p.register("listCollections", nil, listCollsResponseFixer)
+
+	// listIndexes: each batch document has an ns value.
+	listIndexesBatchFixer := newDocumentValueFixer(compositeFixer{
+		"ns": valueFixerFunc(removeDBPrefixValueFixer),
+	})
+	listIndexesResponseFixer := newCursorResponseFixer(listIndexesBatchFixer)
+	p.register("listIndexes", nil, listIndexesResponseFixer)
+
+	// find: simple cursor subdocument.
+	findResponseFixer := newCursorResponseFixer(nil)
+	p.register("find", nil, findResponseFixer)
 }
