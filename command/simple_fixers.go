@@ -7,7 +7,14 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
-// ValueFixerFunc to add a prefix for $db values in requests.
+var (
+	// noopDatabaseNames contains names of databases that should be proxied without fixing.
+	noopDatabaseNames = map[string]struct{}{
+		"admin": {},
+	}
+)
+
+// ValueFixerFunc to add the database name prefix in requests.
 var addDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
 	db, ok := val.StringValueOK()
 	if !ok {
@@ -22,7 +29,7 @@ var addDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key string, 
 	return dst, nil
 }
 
-// ValueFixerFunc to remove the database name prefix in responses.
+// ValueFixerFunc to remove the database name prefix in responsnes.
 var removeDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
 	db, ok := val.StringValueOK()
 	if !ok {
@@ -37,7 +44,8 @@ var removeDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key strin
 	return dst, nil
 }
 
-var writeErrorsFixer = newArrayValueFixer(newDocumentValueFixer(DocumentFixer{
+// ValueFixer implementation to remove the database name prefix from messages in the writeErrors array in responses.
+var writeErrorsValueFixer ValueFixer = newArrayValueFixer(newDocumentValueFixer(DocumentFixer{
 	"errmsg": ValueFixerFunc(func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
 		errmsg, ok := val.StringValueOK()
 		if !ok {

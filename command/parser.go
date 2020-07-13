@@ -4,17 +4,6 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
-const (
-	dbKey = "$db"
-)
-
-var (
-	// noopDatabaseNames contains names of databases that should be proxied without fixing.
-	noopDatabaseNames = map[string]struct{}{
-		"admin": {},
-	}
-)
-
 // FixerSet represents two fixers associated with a command: one for the incoming request to the underlying server and
 // one for the outgoing response back to the client.
 type FixerSet struct {
@@ -61,14 +50,15 @@ func (p *Parser) Parse(cmdName string) FixerSet {
 }
 
 func (p *Parser) createDefaultRequestFixer() DocumentFixer {
+	// By default, only the $db value is fixed in requests to prepend a prefix to the database name.
 	return DocumentFixer{
-		dbKey: addDBPrefixValueFixer,
+		"$db": addDBPrefixValueFixer,
 	}
 }
 
 func (p *Parser) createDefaultResponseFixer() DocumentFixer {
 	return DocumentFixer{
-		"writeErrors": writeErrorsFixer,
+		"writeErrors": writeErrorsValueFixer,
 	}
 }
 
@@ -83,9 +73,8 @@ func (p *Parser) register(cmdName string, requestFixer DocumentFixer, responseFi
 		fullResponseFixer[k] = v
 	}
 
-	set := FixerSet{
+	p.fixers[cmdName] = FixerSet{
 		requestFixer:  fullRequestFixer,
 		responseFixer: fullResponseFixer,
 	}
-	p.fixers[cmdName] = set
 }
