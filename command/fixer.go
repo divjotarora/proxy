@@ -57,9 +57,9 @@ type documentValueFixer struct {
 	internalFixer DocumentFixer
 }
 
-func newDocumentValueFixer(cf DocumentFixer) *documentValueFixer {
+func newDocumentValueFixer(df DocumentFixer) *documentValueFixer {
 	return &documentValueFixer{
-		internalFixer: cf,
+		internalFixer: df,
 	}
 }
 
