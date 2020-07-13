@@ -144,12 +144,16 @@ func (p *Proxy) handleProxiedRequest(requestMsg mongowire.Message, cmdName strin
 		return err
 	}
 
-	// If this request is not a getMore and the response has a cursor ID, track the cursor ID and command name so we
-	// know how to fix future getMore responses.
-	if cmdName != "getMore" {
-		if cursorID, ok := getCursorID(responseMsg.CommandDocument()); ok {
-			p.cursorMap[cursorID] = cmdName
+	cursorID := getCursorID(responseMsg.CommandDocument())
+	if cmdName == "getMore" {
+		// If this is the last getMore on the cursor, remove the cursor from the map.
+		if cursorID == 0 {
+			delete(p.cursorMap, fixedRequest.Index(0).Value().Int64())
 		}
+	} else if cursorID != 0 {
+		// If the response has a cursor ID, this is a cursor-creating command. Track the ID and command name so we
+		// know how to fix future getMore responses.
+		p.cursorMap[cursorID] = cmdName
 	}
 
 	// Get a wire message for the fixed response and send that back to the client.
@@ -180,15 +184,15 @@ func (p *Proxy) getFixerSet(cmdName string, doc bsoncore.Document) (command.Fixe
 	return p.parser.Parse(cmdName), nil
 }
 
-func getCursorID(doc bsoncore.Document) (int64, bool) {
+func getCursorID(doc bsoncore.Document) int64 {
 	cursorIDVal, err := doc.LookupErr("cursor", "id")
 	if err != nil {
-		return 0, false
+		return 0
 	}
 
 	cursorID, ok := cursorIDVal.Int64OK()
 	if !ok {
-		return 0, false
+		return 0
 	}
-	return cursorID, true
+	return cursorID
 }
