@@ -144,6 +144,8 @@ func (p *Proxy) handleProxiedRequest(requestMsg mongowire.Message, cmdName strin
 		return err
 	}
 
+	// If this request is not a getMore and the response has a cursor ID, track the cursor ID and command name so we
+	// know how to fix future getMore responses.
 	if cmdName != "getMore" {
 		if cursorID, ok := getCursorID(responseMsg.CommandDocument()); ok {
 			p.cursorMap[cursorID] = cmdName
@@ -160,6 +162,7 @@ func (p *Proxy) handleProxiedRequest(requestMsg mongowire.Message, cmdName strin
 }
 
 func (p *Proxy) getFixerSet(cmdName string, doc bsoncore.Document) (command.FixerSet, error) {
+	// For getMore requests, get the fixer set for the originating command.
 	if cmdName == "getMore" {
 		cursorIDVal := doc.Index(0).Value()
 		cursorID, ok := cursorIDVal.Int64OK()
