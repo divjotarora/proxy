@@ -1,0 +1,81 @@
+{
+	"cursor" : {
+		"id" : {"$numberLong": "0"},
+		"ns" : "fixedfoo.$cmd.listCollections",
+		"firstBatch" : [
+			{
+				"name" : "bar",
+				"type" : "collection",
+				"options" : {
+
+				},
+				"info" : {
+                    "readOnly" : false,
+                    "uuid": {
+                        "$binary": {
+                            "base64": "o0w498Or7cijeBSpkquNtg==",
+                            "subType": "04"
+                        }
+                    }
+				},
+				"idIndex" : {
+					"v" : 2,
+					"key" : {
+						"_id" : 1
+					},
+					"name" : "_id_",
+					"ns" : "fixedfoo.bar"
+				}
+			},
+			{
+				"name" : "other",
+				"type" : "collection",
+				"options" : {
+
+				},
+				"info" : {
+					"readOnly" : false,
+                    "uuid": {
+                        "$binary": {
+                            "base64": "o0w498Or7cijeBSpkquNtg==",
+                            "subType": "04"
+                        }
+                    }
+				},
+				"idIndex" : {
+					"v" : 2,
+					"key" : {
+						"_id" : 1
+					},
+					"name" : "_id_",
+					"ns" : "fixedfoo.other"
+				}
+			},
+			{
+				"name" : "coll",
+				"type" : "collection",
+				"options" : {
+
+				},
+				"info" : {
+					"readOnly" : false,
+                    "uuid": {
+                        "$binary": {
+                            "base64": "o0w498Or7cijeBSpkquNtg==",
+                            "subType": "04"
+                        }
+                    }
+				},
+				"idIndex" : {
+					"v" : 2,
+					"key" : {
+						"_id" : 1
+					},
+					"name" : "_id_",
+					"ns" : "fixedfoo.coll"
+				}
+			}
+		]
+	},
+	"ok" : 1
+}
