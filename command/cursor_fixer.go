@@ -2,7 +2,15 @@ package command
 
 // newCursorResponseFixer creates a DocumentFixer for cursor responses. The provided batchDocsFixer will be called for
 // each document in the cursor batch.
-func newCursorResponseFixer(batchDocsFixer ValueFixer) DocumentFixer {
+func newDefaultCursorResponseFixer(batchDocsFixer ValueFixer) DocumentFixer {
+	return DocumentFixer{
+		"cursor": newCursorValueFixer(batchDocsFixer),
+	}
+}
+
+// newCursorResponseFixer creates a ValueFixer for cursor subdocuments. The provided batchDocsFixer will be called for
+// each document in the cursor batch.
+func newCursorValueFixer(batchDocsFixer ValueFixer) ValueFixer {
 	fixers := DocumentFixer{
 		"ns": removeDBPrefixValueFixer,
 	}
@@ -12,7 +20,5 @@ func newCursorResponseFixer(batchDocsFixer ValueFixer) DocumentFixer {
 		fixers["nextBatch"] = avf
 	}
 
-	return DocumentFixer{
-		"cursor": newDocumentValueFixer(fixers),
-	}
+	return newDocumentValueFixer(fixers)
 }
