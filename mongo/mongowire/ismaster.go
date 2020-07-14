@@ -4,7 +4,6 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
-// IsMasterResponse TODO
 var (
 	maxBSONObjectSize            int32 = 16777216
 	maxMessageSizeBytes          int32 = 48000000
