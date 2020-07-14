@@ -52,6 +52,7 @@ func (c *Client) RoundTrip(ctx context.Context, msg []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer conn.Close()
 
 	if err := conn.WriteWireMessage(ctx, msg); err != nil {
 		return nil, err
