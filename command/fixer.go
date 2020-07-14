@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/divjotarora/proxy/bsonutil"
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
@@ -28,13 +29,14 @@ var _ ValueFixer = DocumentFixer{}
 // Fix iterates over the provided document to fix values using the registered ValueFixer instances and returns the
 // fixed document.
 func (df DocumentFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
-	elems, err := doc.Elements()
+	iter, err := bsonutil.NewIterator(doc)
 	if err != nil {
 		return nil, err
 	}
 
 	idx, fixed := bsoncore.AppendDocumentStart(nil)
-	for _, elem := range elems {
+	for iter.HasNext() {
+		elem := iter.Element()
 		key := elem.Key()
 		val := elem.Value()
 
@@ -49,6 +51,9 @@ func (df DocumentFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
 			return nil, err
 		}
 	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
 
 	fixed, _ = bsoncore.AppendDocumentEnd(fixed, idx)
 	return fixed, nil
@@ -62,13 +67,14 @@ func (df DocumentFixer) fixValue(val bsoncore.Value, key string, dst bsoncore.Do
 		return nil, fmt.Errorf("expected value to be document, got %s", val.Type)
 	}
 
-	elems, err := doc.Elements()
+	iter, err := bsonutil.NewIterator(doc)
 	if err != nil {
 		return nil, err
 	}
 
 	idx, dst := bsoncore.AppendDocumentElementStart(dst, key)
-	for _, elem := range elems {
+	for iter.HasNext() {
+		elem := iter.Element()
 		key := elem.Key()
 		val := elem.Value()
 
@@ -82,6 +88,9 @@ func (df DocumentFixer) fixValue(val bsoncore.Value, key string, dst bsoncore.Do
 		if err != nil {
 			return nil, err
 		}
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
 	}
 
 	dst, _ = bsoncore.AppendDocumentEnd(dst, idx)
