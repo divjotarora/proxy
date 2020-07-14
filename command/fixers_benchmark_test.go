@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/divjotarora/proxy/bsonutil"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
@@ -16,7 +17,26 @@ const (
 func BenchmarkFixers(b *testing.B) {
 	listCollsResponse := readJSONFile(b, "list_collections_response.json")
 
+	b.Run("baseline", func(b *testing.B) {
+		// Benchmark to get the baseline metrics for creating a new bsoncore.Document by copying every value over
+		// without any modifications.
+		b.ReportAllocs()
+
+		for i := 0; i < b.N; i++ {
+			iter, err := bsonutil.NewIterator(listCollsResponse)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			idx, doc := bsoncore.AppendDocumentStart(nil)
+			for iter.Next() {
+				doc = bsoncore.AppendValueElement(doc, iter.Element().Key(), iter.Value())
+			}
+			doc, _ = bsoncore.AppendDocumentEnd(doc, idx)
+		}
+	})
 	b.Run("use D", func(b *testing.B) {
+		// Benchmark unmarshalling the response to bson.D, fixing, and marshalling the fixed version.
 		b.ReportAllocs()
 
 		for i := 0; i < b.N; i++ {
@@ -42,6 +62,7 @@ func BenchmarkFixers(b *testing.B) {
 		}
 	})
 	b.Run("use bsoncore", func(b *testing.B) {
+		// Benchmark using a DocumentFixer.
 		b.ReportAllocs()
 
 		listCollsBatchFixer := DocumentFixer{
