@@ -47,6 +47,11 @@ func (i *Iterator) Element() bsoncore.Element {
 	return i.elem
 }
 
+// Value TODO
+func (i *Iterator) Value() bsoncore.Value {
+	return i.elem.Value()
+}
+
 // Err TODO
 func (i *Iterator) Err() error {
 	return i.err

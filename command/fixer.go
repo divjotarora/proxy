@@ -114,19 +114,26 @@ func (avf *arrayValueFixer) fixValue(val bsoncore.Value, key string, dst bsoncor
 		return nil, fmt.Errorf("expected value for key %s to be array, got %s", key, val.Type)
 	}
 
-	values, err := arr.Values()
+	iter, err := bsonutil.NewIterator(arr)
 	if err != nil {
-		return nil, err
+		return dst, err
 	}
 
 	var idx int32
 	idx, dst = bsoncore.AppendArrayElementStart(dst, key)
-	for idx, val := range values {
-		dst, err = avf.internalFixer.fixValue(val, strconv.Itoa(idx), dst)
+
+	var arrayIdx int
+	for iter.HasNext() {
+		dst, err = avf.internalFixer.fixValue(iter.Value(), strconv.Itoa(arrayIdx), dst)
 		if err != nil {
 			return nil, err
 		}
+		arrayIdx++
 	}
+	if err := iter.Err(); err != nil {
+		return dst, err
+	}
+
 	dst, _ = bsoncore.AppendArrayEnd(dst, idx)
 	return dst, nil
 }
