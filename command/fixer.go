@@ -35,7 +35,7 @@ func (df DocumentFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
 	}
 
 	idx, fixed := bsoncore.AppendDocumentStart(nil)
-	for iter.HasNext() {
+	for iter.Next() {
 		elem := iter.Element()
 		key := elem.Key()
 		val := elem.Value()
@@ -73,7 +73,7 @@ func (df DocumentFixer) fixValue(val bsoncore.Value, key string, dst bsoncore.Do
 	}
 
 	idx, dst := bsoncore.AppendDocumentElementStart(dst, key)
-	for iter.HasNext() {
+	for iter.Next() {
 		elem := iter.Element()
 		key := elem.Key()
 		val := elem.Value()
@@ -123,7 +123,7 @@ func (avf *arrayValueFixer) fixValue(val bsoncore.Value, key string, dst bsoncor
 	idx, dst = bsoncore.AppendArrayElementStart(dst, key)
 
 	var arrayIdx int
-	for iter.HasNext() {
+	for iter.Next() {
 		dst, err = avf.internalFixer.fixValue(iter.Value(), strconv.Itoa(arrayIdx), dst)
 		if err != nil {
 			return nil, err
