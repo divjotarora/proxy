@@ -8,6 +8,7 @@ import (
 	"github.com/divjotarora/proxy/bsonutil"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
+	mgobson "gopkg.in/mgo.v2/bson"
 )
 
 const (
@@ -40,22 +41,22 @@ func BenchmarkFixers(b *testing.B) {
 		b.ReportAllocs()
 
 		for i := 0; i < b.N; i++ {
-			var unmarshalled bson.D
-			err := bson.Unmarshal(listCollsResponse, &unmarshalled)
+			var unmarshalled mgobson.D
+			err := mgobson.Unmarshal(listCollsResponse, &unmarshalled)
 			if err != nil {
 				b.Fatal(err)
 			}
 
-			cursorDoc := unmarshalled[0].Value.(bson.D)
+			cursorDoc := unmarshalled[0].Value.(mgobson.D)
 			cursorDoc[1].Value = cursorDoc[1].Value.(string)[5:] // Fix cursor.ns value.
 
 			// Fix idIndex.ns value in every batch document.
-			batchArray := cursorDoc[2].Value.(bson.A)
+			batchArray := cursorDoc[2].Value.([]interface{})
 			for _, doc := range batchArray {
-				doc.(bson.D)[4].Value.(bson.D)[3].Value = doc.(bson.D)[4].Value.(bson.D)[3].Value.(string)[5:]
+				doc.(mgobson.D)[4].Value.(mgobson.D)[3].Value = doc.(mgobson.D)[4].Value.(mgobson.D)[3].Value.(string)[5:]
 			}
 
-			_, err = bson.Marshal(unmarshalled)
+			_, err = mgobson.Marshal(unmarshalled)
 			if err != nil {
 				b.Fatal(err)
 			}
