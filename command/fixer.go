@@ -11,13 +11,13 @@ import (
 // ValueFixer is implemented by types that can fix a single value in a document and write the fixed value out to the
 // provided destination document.
 type ValueFixer interface {
-	fixValue(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error)
+	fixValue(val bsoncore.Value, key []byte, dst bsoncore.Document) (bsoncore.Document, error)
 }
 
 // ValueFixerFunc is a standalone function implementation of ValueFixer.
-type ValueFixerFunc func(bsoncore.Value, string, bsoncore.Document) (bsoncore.Document, error)
+type ValueFixerFunc func(bsoncore.Value, []byte, bsoncore.Document) (bsoncore.Document, error)
 
-func (vff ValueFixerFunc) fixValue(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+func (vff ValueFixerFunc) fixValue(val bsoncore.Value, key []byte, dst bsoncore.Document) (bsoncore.Document, error) {
 	return vff(val, key, dst)
 }
 
@@ -39,13 +39,13 @@ func (df DocumentFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
 }
 
 // fixValue implements ValueFixer.
-func (df DocumentFixer) fixValue(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+func (df DocumentFixer) fixValue(val bsoncore.Value, key []byte, dst bsoncore.Document) (bsoncore.Document, error) {
 	src, ok := val.DocumentOK()
 	if !ok {
 		return nil, fmt.Errorf("expected value to be document, got %s", val.Type)
 	}
 
-	idx, dst := bsoncore.AppendDocumentElementStart(dst, key)
+	idx, dst := bsoncore.AppendDocumentElementStart(dst, string(key))
 	dst, err := df.fixHelper(src, dst)
 	if err != nil {
 		return dst, err
@@ -72,7 +72,7 @@ func (df DocumentFixer) fixHelper(src, dst bsoncore.Document) (bsoncore.Document
 			continue
 		}
 
-		dst, err = vf.fixValue(val, string(key), dst)
+		dst, err = vf.fixValue(val, key, dst)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +95,7 @@ func newArrayValueFixer(vf ValueFixer) *arrayValueFixer {
 	}
 }
 
-func (avf *arrayValueFixer) fixValue(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+func (avf *arrayValueFixer) fixValue(val bsoncore.Value, key []byte, dst bsoncore.Document) (bsoncore.Document, error) {
 	arr, ok := val.ArrayOK()
 	if !ok {
 		return nil, fmt.Errorf("expected value for key %s to be array, got %s", key, val.Type)
@@ -107,11 +107,11 @@ func (avf *arrayValueFixer) fixValue(val bsoncore.Value, key string, dst bsoncor
 	}
 
 	var idx int32
-	idx, dst = bsoncore.AppendArrayElementStart(dst, key)
+	idx, dst = bsoncore.AppendArrayElementStart(dst, string(key))
 
 	var arrayIdx int
 	for iter.Next() {
-		dst, err = avf.internalFixer.fixValue(iter.Value(), strconv.Itoa(arrayIdx), dst)
+		dst, err = avf.internalFixer.fixValue(iter.Value(), []byte(strconv.Itoa(arrayIdx)), dst)
 		if err != nil {
 			return nil, err
 		}

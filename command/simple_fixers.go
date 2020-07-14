@@ -15,7 +15,7 @@ var (
 )
 
 // ValueFixerFunc to add the database name prefix in requests.
-var addDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+var addDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key []byte, dst bsoncore.Document) (bsoncore.Document, error) {
 	db, ok := val.StringValueOK()
 	if !ok {
 		return nil, fmt.Errorf("expected $db value to be string, got %s", val.Type)
@@ -25,12 +25,12 @@ var addDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key string, 
 	if _, ok := noopDatabaseNames[db]; !ok {
 		fixedDB = fmt.Sprintf("fixed%s", db)
 	}
-	dst = bsoncore.AppendStringElement(dst, key, fixedDB)
+	dst = bsoncore.AppendStringElement(dst, string(key), fixedDB)
 	return dst, nil
 }
 
 // ValueFixerFunc to remove the database name prefix in responsnes.
-var removeDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+var removeDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key []byte, dst bsoncore.Document) (bsoncore.Document, error) {
 	db, ok := val.StringValueOK()
 	if !ok {
 		return nil, fmt.Errorf("expected $db value to be string, got %s", val.Type)
@@ -40,20 +40,20 @@ var removeDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key strin
 	if _, ok := noopDatabaseNames[db]; !ok {
 		fixedDB = db[5:] // remove "fixed" prefix
 	}
-	dst = bsoncore.AppendStringElement(dst, key, fixedDB)
+	dst = bsoncore.AppendStringElement(dst, string(key), fixedDB)
 	return dst, nil
 }
 
 // ValueFixer implementation to remove the database name prefix from messages in the writeErrors array in responses.
 var writeErrorsValueFixer ValueFixer = newArrayValueFixer(DocumentFixer{
-	"errmsg": ValueFixerFunc(func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+	"errmsg": ValueFixerFunc(func(val bsoncore.Value, key []byte, dst bsoncore.Document) (bsoncore.Document, error) {
 		errmsg, ok := val.StringValueOK()
 		if !ok {
 			return dst, fmt.Errorf("expected errmsg value to be of type string, got %s", val.Type)
 		}
 
 		fixedErrMsg := strings.ReplaceAll(errmsg, "fixed", "")
-		dst = bsoncore.AppendStringElement(dst, key, fixedErrMsg)
+		dst = bsoncore.AppendStringElement(dst, string(key), fixedErrMsg)
 		return dst, nil
 	}),
 })
