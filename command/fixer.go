@@ -63,16 +63,16 @@ func (df DocumentFixer) fixHelper(src, dst bsoncore.Document) (bsoncore.Document
 
 	for iter.Next() {
 		elem := iter.Element()
-		key := elem.Key()
-		val := elem.Value()
+		val := iter.Value()
+		key := elem.KeyBytes() // Keeping key as []byte and converting to string lazily when needed saves allocations.
 
-		vf, ok := df[key]
+		vf, ok := df[string(key)]
 		if !ok {
-			dst = bsoncore.AppendValueElement(dst, key, val)
+			dst = bsoncore.AppendValueElement(dst, string(key), val)
 			continue
 		}
 
-		dst, err = vf.fixValue(val, key, dst)
+		dst, err = vf.fixValue(val, string(key), dst)
 		if err != nil {
 			return nil, err
 		}
