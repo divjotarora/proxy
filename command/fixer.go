@@ -29,50 +29,38 @@ var _ ValueFixer = DocumentFixer{}
 // Fix iterates over the provided document to fix values using the registered ValueFixer instances and returns the
 // fixed document.
 func (df DocumentFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
-	iter, err := bsonutil.NewIterator(doc)
+	idx, fixed := bsoncore.AppendDocumentStart(nil)
+	fixed, err := df.fixHelper(doc, fixed)
 	if err != nil {
 		return nil, err
 	}
-
-	idx, fixed := bsoncore.AppendDocumentStart(nil)
-	for iter.Next() {
-		elem := iter.Element()
-		key := elem.Key()
-		val := elem.Value()
-
-		vf, ok := df[key]
-		if !ok {
-			fixed = bsoncore.AppendValueElement(fixed, key, val)
-			continue
-		}
-
-		fixed, err = vf.fixValue(val, key, fixed)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if err := iter.Err(); err != nil {
-		return nil, err
-	}
-
 	fixed, _ = bsoncore.AppendDocumentEnd(fixed, idx)
 	return fixed, nil
 }
 
 // fixValue implements ValueFixer.
-// TODO: consolidate some of the code that's duplicated across Fix and fixValue
 func (df DocumentFixer) fixValue(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
-	doc, ok := val.DocumentOK()
+	src, ok := val.DocumentOK()
 	if !ok {
 		return nil, fmt.Errorf("expected value to be document, got %s", val.Type)
 	}
 
-	iter, err := bsonutil.NewIterator(doc)
+	idx, dst := bsoncore.AppendDocumentElementStart(dst, key)
+	dst, err := df.fixHelper(src, dst)
+	if err != nil {
+		return dst, err
+	}
+	dst, _ = bsoncore.AppendDocumentEnd(dst, idx)
+
+	return dst, nil
+}
+
+func (df DocumentFixer) fixHelper(src, dst bsoncore.Document) (bsoncore.Document, error) {
+	iter, err := bsonutil.NewIterator(src)
 	if err != nil {
 		return nil, err
 	}
 
-	idx, dst := bsoncore.AppendDocumentElementStart(dst, key)
 	for iter.Next() {
 		elem := iter.Element()
 		key := elem.Key()
@@ -93,7 +81,6 @@ func (df DocumentFixer) fixValue(val bsoncore.Value, key string, dst bsoncore.Do
 		return nil, err
 	}
 
-	dst, _ = bsoncore.AppendDocumentEnd(dst, idx)
 	return dst, nil
 }
 
