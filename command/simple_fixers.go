@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/divjotarora/proxy/bsonutil"
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
@@ -31,16 +32,16 @@ var addDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key []byte, 
 
 // ValueFixerFunc to remove the database name prefix in responsnes.
 var removeDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key []byte, dst bsoncore.Document) (bsoncore.Document, error) {
-	db, ok := val.StringValueOK()
+	db, ok := bsonutil.ValueToByteSlice(val)
 	if !ok {
 		return nil, fmt.Errorf("expected $db value to be string, got %s", val.Type)
 	}
 
 	fixedDB := db
-	if _, ok := noopDatabaseNames[db]; !ok {
+	if _, ok := noopDatabaseNames[string(db)]; !ok {
 		fixedDB = db[5:] // remove "fixed" prefix
 	}
-	dst = bsoncore.AppendStringElement(dst, string(key), fixedDB)
+	dst = bsoncore.AppendStringElement(dst, string(key), string(fixedDB))
 	return dst, nil
 }
 
