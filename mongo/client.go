@@ -13,11 +13,13 @@ import (
 	"go.mongodb.org/mongo-driver/x/mongo/driver/topology"
 )
 
+// Client represents a direct connection to a MongoDB server. This is a long-lived type and is safe for concurrent use.
 type Client struct {
 	client *mongo.Client
 	server driver.Server
 }
 
+// NewClient creates a new Client instance.
 func NewClient(ctx context.Context, opts *options.ClientOptions) (*Client, error) {
 	client, err := mongo.Connect(ctx, opts)
 	if err != nil {
@@ -39,10 +41,12 @@ func NewClient(ctx context.Context, opts *options.ClientOptions) (*Client, error
 	return c, nil
 }
 
+// Disconnect closes open connections to the MongoDB server and cleans up any remaining resources.
 func (c *Client) Disconnect(ctx context.Context) error {
 	return c.client.Disconnect(ctx)
 }
 
+// RoundTrip sends a wire message to the underlying MongoDB server and returns the server's response.
 func (c *Client) RoundTrip(ctx context.Context, msg []byte) ([]byte, error) {
 	conn, err := c.server.Connection(ctx)
 	if err != nil {
