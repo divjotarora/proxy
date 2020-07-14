@@ -1,8 +1,8 @@
 package command
 
 import (
+	"bytes"
 	"fmt"
-	"strings"
 
 	"github.com/divjotarora/proxy/bsonutil"
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
@@ -48,13 +48,13 @@ var removeDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key []byt
 // ValueFixer implementation to remove the database name prefix from messages in the writeErrors array in responses.
 var writeErrorsValueFixer ValueFixer = newArrayValueFixer(DocumentFixer{
 	"errmsg": ValueFixerFunc(func(val bsoncore.Value, key []byte, dst bsoncore.Document) (bsoncore.Document, error) {
-		errmsg, ok := val.StringValueOK()
+		errmsg, ok := bsonutil.ValueToByteSlice(val)
 		if !ok {
 			return dst, fmt.Errorf("expected errmsg value to be of type string, got %s", val.Type)
 		}
 
-		fixedErrMsg := strings.ReplaceAll(errmsg, "fixed", "")
-		dst = bsoncore.AppendStringElement(dst, string(key), fixedErrMsg)
+		fixedErrMsg := bytes.ReplaceAll(errmsg, []byte("fixed"), []byte(""))
+		dst = bsoncore.AppendStringElement(dst, string(key), string(fixedErrMsg))
 		return dst, nil
 	}),
 })
