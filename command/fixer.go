@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/divjotarora/proxy/bsonutil"
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
@@ -109,13 +108,15 @@ func (avf *arrayValueFixer) fixValue(val bsoncore.Value, key []byte, dst bsoncor
 	var idx int32
 	idx, dst = bsoncore.AppendArrayElementStart(dst, string(key))
 
-	var arrayIdx int
 	for iter.Next() {
-		dst, err = avf.internalFixer.fixValue(iter.Value(), []byte(strconv.Itoa(arrayIdx)), dst)
+		elem := iter.Element()
+		val := iter.Value()
+
+		// Use KeyBytes instead of Key to avoid an allocation.
+		dst, err = avf.internalFixer.fixValue(val, elem.KeyBytes(), dst)
 		if err != nil {
 			return nil, err
 		}
-		arrayIdx++
 	}
 	if err := iter.Err(); err != nil {
 		return dst, err
