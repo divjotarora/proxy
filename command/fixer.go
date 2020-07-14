@@ -23,6 +23,8 @@ func (vff ValueFixerFunc) fixValue(val bsoncore.Value, key string, dst bsoncore.
 // DocumentFixer represents a set of ValueFixer instances, each mapped to a BSON key.
 type DocumentFixer map[string]ValueFixer
 
+var _ ValueFixer = DocumentFixer{}
+
 // Fix iterates over the provided document to fix values using the registered ValueFixer instances and returns the
 // fixed document.
 func (df DocumentFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
@@ -38,7 +40,7 @@ func (df DocumentFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
 
 		vf, ok := df[key]
 		if !ok {
-			fixed = bsoncore.AppendValueElement(fixed, key, elem.Value())
+			fixed = bsoncore.AppendValueElement(fixed, key, val)
 			continue
 		}
 
@@ -52,28 +54,37 @@ func (df DocumentFixer) Fix(doc bsoncore.Document) (bsoncore.Document, error) {
 	return fixed, nil
 }
 
-// documentValueFixer is the ValueFixer implementation for BSON subdocument values.
-type documentValueFixer struct {
-	internalFixer DocumentFixer
-}
-
-func newDocumentValueFixer(df DocumentFixer) *documentValueFixer {
-	return &documentValueFixer{
-		internalFixer: df,
-	}
-}
-
-func (dvf *documentValueFixer) fixValue(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
+// fixValue implements ValueFixer.
+// TODO: consolidate some of the code that's duplicated across Fix and fixValue
+func (df DocumentFixer) fixValue(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
 	doc, ok := val.DocumentOK()
 	if !ok {
-		return nil, fmt.Errorf("expected value for key %s to be document, got %s", key, val.Type)
+		return nil, fmt.Errorf("expected value to be document, got %s", val.Type)
 	}
 
-	fixed, err := dvf.internalFixer.Fix(doc)
+	elems, err := doc.Elements()
 	if err != nil {
 		return nil, err
 	}
-	dst = bsoncore.AppendDocumentElement(dst, key, fixed)
+
+	idx, dst := bsoncore.AppendDocumentElementStart(dst, key)
+	for _, elem := range elems {
+		key := elem.Key()
+		val := elem.Value()
+
+		vf, ok := df[key]
+		if !ok {
+			dst = bsoncore.AppendValueElement(dst, key, val)
+			continue
+		}
+
+		dst, err = vf.fixValue(val, key, dst)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	dst, _ = bsoncore.AppendDocumentEnd(dst, idx)
 	return dst, nil
 }
 

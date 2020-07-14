@@ -20,5 +20,5 @@ func newCursorValueFixer(batchDocsFixer ValueFixer) ValueFixer {
 		fixers["nextBatch"] = avf
 	}
 
-	return newDocumentValueFixer(fixers)
+	return fixers
 }

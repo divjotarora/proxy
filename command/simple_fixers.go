@@ -45,7 +45,7 @@ var removeDBPrefixValueFixer ValueFixerFunc = func(val bsoncore.Value, key strin
 }
 
 // ValueFixer implementation to remove the database name prefix from messages in the writeErrors array in responses.
-var writeErrorsValueFixer ValueFixer = newArrayValueFixer(newDocumentValueFixer(DocumentFixer{
+var writeErrorsValueFixer ValueFixer = newArrayValueFixer(DocumentFixer{
 	"errmsg": ValueFixerFunc(func(val bsoncore.Value, key string, dst bsoncore.Document) (bsoncore.Document, error) {
 		errmsg, ok := val.StringValueOK()
 		if !ok {
@@ -56,4 +56,4 @@ var writeErrorsValueFixer ValueFixer = newArrayValueFixer(newDocumentValueFixer(
 		dst = bsoncore.AppendStringElement(dst, key, fixedErrMsg)
 		return dst, nil
 	}),
-}))
+})

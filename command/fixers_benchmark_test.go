@@ -44,11 +44,11 @@ func BenchmarkFixers(b *testing.B) {
 	b.Run("use bsoncore", func(b *testing.B) {
 		b.ReportAllocs()
 
-		listCollsBatchFixer := newDocumentValueFixer(DocumentFixer{
-			"idIndex": newDocumentValueFixer(DocumentFixer{
+		listCollsBatchFixer := DocumentFixer{
+			"idIndex": DocumentFixer{
 				"ns": ValueFixerFunc(removeDBPrefixValueFixer),
-			}),
-		})
+			},
+		}
 		responseFixer := newDefaultCursorResponseFixer(listCollsBatchFixer)
 
 		for i := 0; i < b.N; i++ {
