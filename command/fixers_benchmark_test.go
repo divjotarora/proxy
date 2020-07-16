@@ -81,6 +81,43 @@ func BenchmarkFixers(b *testing.B) {
 	})
 }
 
+func BenchmarkPassthrough(b *testing.B) {
+	// Simulate a baseline passthrough suite where nothing is being fixed, so the fixer codepath is a no-op.
+
+	listCollsResponse := readJSONFile(b, "list_collections_response.json")
+
+	b.Run("use D", func(b *testing.B) {
+		// In the passthrough suite, documents are unmarshalled to bson.D and then immediately re-marshalled.
+		b.ReportAllocs()
+
+		for i := 0; i < b.N; i++ {
+			var unmarshalled bson.D
+			err := bson.Unmarshal(listCollsResponse, &unmarshalled)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			_, err = bson.Marshal(unmarshalled)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("use bsoncore", func(b *testing.B) {
+		// For passthrough, an empty DocumentFixer is used. This will iterate over all values in the document and copy
+		// them over using bsoncore.AppendValueElement.
+		b.ReportAllocs()
+
+		for i := 0; i < b.N; i++ {
+			df := DocumentFixer{}
+			_, err := df.Fix(listCollsResponse)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
 func readJSONFile(b *testing.B, file string) bsoncore.Document {
 	b.Helper()
 
